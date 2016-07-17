@@ -101,13 +101,14 @@ public class LoadTestDriver extends PhantomJSDriver {
 	
 	private void postRecordingTasks() {
 		configureTestFile();
-		compileTestFile();
+		//compileTestFile();
 		//showLoadTestMonitor();
 		//runLoadTest();
 		//showResultRaport();
 	}
 
 	private void configureTestFile() {
+		boolean syncIdsInitialized = false;
 		String fileName = recorder.getTempFilePath()+"/"+recorder.getClassName()+".scala";
 		Logger.getLogger(Recorder.class.getName()).info("Configuring test file: "+fileName);
 		try {
@@ -124,14 +125,19 @@ public class LoadTestDriver extends PhantomJSDriver {
 	            if(line != null) {
 	                newLine = line;
 	                
+	                if (testRefactoringEnabled && newLine.contains("val scn")) {
+            			insertSyncIdInits(lines);
+            		}
+	                
+	                if (newLine.contains(".exec(http(") && !syncIdsInitialized) {
+	                	lines.add("\t\t.exec(initSyncAndClientIds)");
+	                	syncIdsInitialized = true;
+	                }
+	                	
 	            	if (testRefactoringEnabled && newLine.contains(".resources(http(")) {
 	            		resourcesHandled = false;
-	            		
-//	            		if (newLine.contains("val scn")) {
-//	            			insertSyncIdInits(lines);
-//	            		}
-	            		
-	            		newLine = newLine.replaceFirst("\\.resources\\(http\\(", ").pause(0)\n.exec(http(");
+
+	            		newLine = newLine.replaceFirst("\\.resources\\(http\\(", ").pause(0)\n\t\t.exec(http(");
 	            		if (newLine.contains("RawFileBody")) {
 	            			newLine = replaceWithStringBody(newLine);
 	            		}	            		
@@ -143,6 +149,8 @@ public class LoadTestDriver extends PhantomJSDriver {
 	            			if (newLine.endsWith("),")) {
 	            				newLine = newLine.replaceFirst("\\),", ")\n\t\t).pause(0)\n\t\t.exec(");	            				
 	            			}
+	            			
+	            			newLine = newLine.replaceFirst("\\s+http\\(","\t\t\thttp(");
 	            			
 	            			resourcesHandled = newLine.endsWith(")))");
 	            			if (resourcesHandled) {
@@ -170,7 +178,15 @@ public class LoadTestDriver extends PhantomJSDriver {
 	        }
 	        br.close();
 	        
-
+	        if (testRefactoringEnabled) {
+		        for (int i=0; i<lines.size(); i++) {
+		        	String aline = lines.get(i);
+		        	if (aline.contains(".post(") && aline.contains("/UIDL/?v-uiId=")) {
+		        		lines.add(i+2, "\t\t\t.check(regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncIdPlaceholder\"))");
+		        		lines.add(i+3, "\t\t\t.check(regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientIdPlaceholder\"))");
+		        	}
+		        }
+	        }
 	        
 	        FileWriter fw = new FileWriter(file);
 	        BufferedWriter bw = new BufferedWriter(fw);
@@ -199,9 +215,11 @@ public class LoadTestDriver extends PhantomJSDriver {
 			String fileName = matcher.group(1);
 			Logger.getLogger(Recorder.class.getName()).info(fileName);
 			String requesBody = readFileContent(recorder.getTempFilePath()+"/bodies/"+fileName);
+			requesBody = requesBody.replaceFirst("syncId\":[0-9]+", Matcher.quoteReplacement("syncId\":${syncIdPlaceholder}"));
+			requesBody = requesBody.replaceFirst("clientId\":[0-9]+", Matcher.quoteReplacement("clientId\":${clientIdPlaceholder}"));
 			requesBody = requesBody.replaceAll("\"", "\\\\\"");
 			newLine = newLine.replaceFirst("RawFileBody","StringBody");
-			newLine = newLine.replaceFirst("\"(.*?)\"", "\""+requesBody+"\"");
+			newLine = newLine.replaceFirst("\"(.*?)\"", Matcher.quoteReplacement("\""+requesBody+"\""));
 		}
 		return newLine;
 	}
@@ -221,7 +239,13 @@ public class LoadTestDriver extends PhantomJSDriver {
 	}
 
 	private void insertSyncIdInits(List<String> lines) {
-		
+		lines.add("\tval initSyncAndClientIds = exec((session) => {");
+		lines.add("\t\tsession.setAll(");
+		lines.add("\t\t\t\"syncIdPlaceholder\" -> 0,");
+		lines.add("\t\t\t\"clientIdPlaceholder\" -> 0");
+		lines.add("\t\t)");
+		lines.add("\t})");
+		lines.add("\n");
 	}
 
 	public void setConcurrentUsers(int concurrentUsers) {
