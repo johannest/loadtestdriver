@@ -85,14 +85,12 @@ public class Recorder {
         final RecorderPropertiesBuilder props = new RecorderPropertiesBuilder();
         props.mode(RecorderMode.apply("Proxy"));
         props.localPort(proxyPort);
-        // props.proxyPort(proxyPort);
-        // props.proxyHost(proxyHost);
         className = "SIMx" + new Random().nextInt(100000);
         props.simulationClassName(className);
         props.simulationOutputFolder(tempFilePath);
         props.followRedirect(true);
         props.removeCacheHeaders(true);
-        props.inferHtmlResources(true);
+        props.inferHtmlResources(false);
         if (ignoreStatics) {
             props.filterStrategy("BlacklistFirst");
             props.blacklist(Arrays.asList(staticPatterns));

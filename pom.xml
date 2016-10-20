@@ -9,7 +9,7 @@
 	<name>loadtestdriver</name>
 
 	<properties>
-		<vaadin.version>7.6.6</vaadin.version>
+		<vaadin.version>7.7.3</vaadin.version>
 		<vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
@@ -72,6 +72,18 @@
 			<artifactId>vaadin-client-compiler</artifactId>
 		</dependency>
 		<dependency>
+		   <groupId>com.vaadin</groupId>
+		   <artifactId>vaadin-testbench</artifactId>
+		   <version>4.1.0.alpha2</version>
+		</dependency>
+		<dependency>
+   			<groupId>com.vaadin.addon</groupId>
+   			<artifactId>vaadin-charts</artifactId>
+   			<version>3.0.0-alpha9</version>
+		</dependency>
+		
+		<!-- Gatling dependencies -->
+		<dependency>
     		<groupId>io.gatling</groupId>
     		<artifactId>gatling-core</artifactId>
     		<version>${gatling.version}</version>
@@ -97,11 +109,6 @@
     		<version>${gatling.version}</version>
   		</dependency>
   		<dependency>
-    		<groupId>io.gatling</groupId>
-    		<artifactId>gatling-compiler</artifactId>
-    		<version>${gatling.version}</version>
-  		</dependency>
-  		<dependency>
 			<groupId>io.gatling.highcharts</groupId>
 			<artifactId>gatling-charts-highcharts</artifactId>
 			<version>${gatling.version}</version>
@@ -117,28 +124,6 @@
 			<version>${gatling.version}</version>
 		</dependency>
 		
-  		
-  		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-			<version>${scala.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
-			<version>${scala.version}</version>
-		</dependency>
-		
-		<dependency>
-		   <groupId>com.vaadin</groupId>
-		   <artifactId>vaadin-testbench</artifactId>
-		   <version>4.1.0.alpha2</version>
-		</dependency>
-		<dependency>
-   			<groupId>com.vaadin.addon</groupId>
-   			<artifactId>vaadin-charts</artifactId>
-   			<version>3.0.0-alpha9</version>
-		</dependency>
 	</dependencies>
 
 	<build>

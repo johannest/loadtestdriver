@@ -33,6 +33,11 @@ import scala.collection.mutable.StringBuilder;
 
 public class LoadTestDriver extends PhantomJSDriver {
 
+    private static final String SYNC_AND_CLIENT_ID_INIT = "\tval initSyncAndClientIds = exec((session) => {\n\t\tsession.setAll(\n\t\t\t\"syncIdPlaceholder\" -> 0,\n\t\t\t\"clientIdPlaceholder\" -> 0\n\t\t\n\t})\n";
+    private static final String SEC_TOKEN_EXTRACT = "val xsrfTokenExtract = regex(\"\"\"Vaadin-Security-Key\\\":\\\"([^\\]+)\"\"\").saveAs(\"seckey\")";
+    private static final String CLIENT_ID_EXTRACT = "val clientIdExtract = regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientId\")";
+    private static final String SYNC_ID_EXTRACT = "val syncIdExtract = regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncId\")";
+
     private Recorder recorder;
     private boolean recording;
 
@@ -118,75 +123,39 @@ public class LoadTestDriver extends PhantomJSDriver {
             final BufferedReader br = new BufferedReader(fr);
 
             String line, newLine;
-            final List<String> lines = new ArrayList<String>();
-
-            boolean resourcesHandled = true;
+            final List<String> lines = new ArrayList<>();
 
             while ((line = br.readLine()) != null) {
                 if (line != null) {
                     newLine = line;
 
-                    if (testRefactoringEnabled && newLine.contains("val scn")) {
-                        insertSyncIdInits(lines);
-                    }
-
-                    if (newLine.contains(".exec(http(")
-                            && !syncIdsInitialized) {
-                        lines.add("\t\t.exec(initSyncAndClientIds)");
-                        syncIdsInitialized = true;
-                    }
-
-                    if (testRefactoringEnabled
-                            && newLine.contains(".resources(http(")) {
-                        resourcesHandled = false;
-
-                        newLine = newLine.replaceFirst("\\.resources\\(http\\(",
-                                ").pause(0)\n\t\t.exec(http(");
-                        if (newLine.contains("RawFileBody")) {
-                            newLine = replaceWithStringBody(newLine);
-                        }
-                        lines.add(newLine);
-
-                        while (!resourcesHandled) {
-                            newLine = br.readLine();
-
-                            if (newLine.endsWith("),")) {
-                                newLine = newLine.replaceFirst("\\),",
-                                        ")\n\t\t).pause(0)\n\t\t.exec(");
-                            }
-
-                            newLine = newLine.replaceFirst("\\s+http\\(",
-                                    "\t\t\thttp(");
-
-                            resourcesHandled = newLine.endsWith(")))");
-                            if (resourcesHandled) {
-                                newLine = newLine.replaceFirst("\\)\\)\\)",
-                                        "))");
-                            }
-
-                            if (newLine.contains("RawFileBody")) {
-                                newLine = replaceWithStringBody(newLine);
-                                Logger.getLogger(Recorder.class.getName())
-                                        .info(newLine);
-                            }
-
-                            lines.add(newLine);
+                    if (testRefactoringEnabled) {
+                        if (newLine.contains("val scn")) {
+                            insertHelperMethods(lines);
                         }
 
-                    } else {
+                        if (newLine.contains(".exec(http(")
+                                && !syncIdsInitialized) {
+                            lines.add("\t\t.exec(initSyncAndClientIds)");
+                            syncIdsInitialized = true;
+                        }
+
                         if (newLine.contains("RawFileBody")) {
                             newLine = replaceWithStringBody(newLine);
                             Logger.getLogger(Recorder.class.getName())
                                     .info(newLine);
                         }
+                    }
 
+                    if (newLine.contains("atOnceUsers")) {
                         newLine = newLine.replaceFirst(
                                 "inject\\(atOnceUsers\\(1\\)\\)",
                                 "inject(rampUsers(" + concurrentUsers
                                         + ") over (" + rampUpTime
                                         + " seconds))");
-                        lines.add(newLine);
                     }
+
+                    lines.add(newLine);
                 }
             }
             br.close();
@@ -197,9 +166,7 @@ public class LoadTestDriver extends PhantomJSDriver {
                     if (aline.contains(".post(")
                             && aline.contains("/UIDL/?v-uiId=")) {
                         lines.add(i + 2,
-                                "\t\t\t.check(regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncIdPlaceholder\"))");
-                        lines.add(i + 3,
-                                "\t\t\t.check(regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientIdPlaceholder\"))");
+                                "\t\t\t.check(syncIdExtract).check(clientIdExtract)");
                     }
                 }
             }
@@ -235,10 +202,10 @@ public class LoadTestDriver extends PhantomJSDriver {
             String requesBody = readFileContent(
                     recorder.getTempFilePath() + "/bodies/" + fileName);
             requesBody = requesBody.replaceFirst("syncId\":[0-9]+",
-                    Matcher.quoteReplacement("syncId\":${syncIdPlaceholder}"));
-            requesBody = requesBody.replaceFirst("clientId\":[0-9]+", Matcher
-                    .quoteReplacement("clientId\":${clientIdPlaceholder}"));
-            requesBody = requesBody.replaceAll("\"", "\\\\\"");
+                    Matcher.quoteReplacement("syncId\":${syncId}"));
+            requesBody = requesBody.replaceFirst("clientId\":[0-9]+",
+                    Matcher.quoteReplacement("clientId\":${clientId}"));
+            requesBody = "\"\"\"" + requesBody + "\"\"\"";
             newLine = newLine.replaceFirst("RawFileBody", "StringBody");
             newLine = newLine.replaceFirst("\"(.*?)\"",
                     Matcher.quoteReplacement("\"" + requesBody + "\""));
@@ -248,25 +215,27 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private String readFileContent(String filename) {
         String content = "";
+        Scanner scanner = null;
         try {
-            content = new Scanner(new File(filename)).useDelimiter("\\Z")
-                    .next();
+            scanner = new Scanner(new File(filename));
+            content = scanner.useDelimiter("\\Z").next();
             Logger.getLogger(Recorder.class.getName()).info(content);
         } catch (final FileNotFoundException e) {
             Logger.getLogger(Recorder.class.getName())
                     .severe("Failed to read request");
             e.printStackTrace();
+        } finally {
+            scanner.close();
         }
         return content;
     }
 
-    private void insertSyncIdInits(List<String> lines) {
-        lines.add("\tval initSyncAndClientIds = exec((session) => {");
-        lines.add("\t\tsession.setAll(");
-        lines.add("\t\t\t\"syncIdPlaceholder\" -> 0,");
-        lines.add("\t\t\t\"clientIdPlaceholder\" -> 0");
-        lines.add("\t\t)");
-        lines.add("\t})");
+    private void insertHelperMethods(List<String> lines) {
+        lines.add(SYNC_AND_CLIENT_ID_INIT);
+        lines.add("\n");
+        lines.add(SYNC_ID_EXTRACT);
+        lines.add(CLIENT_ID_EXTRACT);
+        lines.add(SEC_TOKEN_EXTRACT);
         lines.add("\n");
     }
 
@@ -490,7 +459,7 @@ public class LoadTestDriver extends PhantomJSDriver {
         }
 
         public WebDriver build() {
-            final ArrayList<String> cliArgsCap = new ArrayList<String>();
+            final ArrayList<String> cliArgsCap = new ArrayList<>();
             cliArgsCap.add("--web-security=false");
             cliArgsCap.add("--load-images=false");
             cliArgsCap.add("--ignore-ssl-errors=true");
@@ -498,7 +467,7 @@ public class LoadTestDriver extends PhantomJSDriver {
             cliArgsCap.add("--proxy=" + ipaddress + ":" + proxyPort);
             cliArgsCap.add("--proxy-type=http");
 
-            final ArrayList<String> cliArgsCap2 = new ArrayList<String>();
+            final ArrayList<String> cliArgsCap2 = new ArrayList<>();
             cliArgsCap2.add("--logLevel=INFO");
 
             final DesiredCapabilities capabilities = DesiredCapabilities
