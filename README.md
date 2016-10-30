@@ -6,6 +6,8 @@ WebDriver for recording a Gatling load test, from a TestBench test
 
 Workflow
 ========
+0. Install PhantomJS (>=2.0.0) to your computer, verify that it is your path by executing: `phantomjs -v`on the command prompt
+
 
 1. Add dependency to your pom.xml:
 ```
