@@ -21,9 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.filefilter.WildcardFileFilter;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.phantomjs.PhantomJSDriver;
-import org.openqa.selenium.phantomjs.PhantomJSDriverService;
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 import io.gatling.app.Gatling;
@@ -33,20 +31,24 @@ import scala.collection.mutable.StringBuilder;
 
 public class LoadTestDriver extends PhantomJSDriver {
 
-    private static final String SYNC_AND_CLIENT_ID_INIT = "\tval initSyncAndClientIds = exec((session) => {\n\t\tsession.setAll(\n\t\t\t\"syncIdPlaceholder\" -> 0,\n\t\t\t\"clientIdPlaceholder\" -> 0\n\t\t\n\t})\n";
-    private static final String SEC_TOKEN_EXTRACT = "val xsrfTokenExtract = regex(\"\"\"Vaadin-Security-Key\\\":\\\"([^\\]+)\"\"\").saveAs(\"seckey\")";
-    private static final String CLIENT_ID_EXTRACT = "val clientIdExtract = regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientId\")";
-    private static final String SYNC_ID_EXTRACT = "val syncIdExtract = regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncId\")";
+    private static final String SYNC_AND_CLIENT_ID_INIT = "\tval initSyncAndClientIds = exec((session) => {\n\t\tsession.setAll(\n\t\t\t\"syncId\" -> 0,\n\t\t\t\"clientId\" -> 0\n\t\t\t)})";
+    private static final String SEC_TOKEN_EXTRACT = "\tval xsrfTokenExtract = regex(\"\"\"Vaadin-Security-Key\\\":\\\"([^\\]+)\"\"\").saveAs(\"seckey\")";
+    private static final String CLIENT_ID_EXTRACT = "\tval clientIdExtract = regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientId\")";
+    private static final String SYNC_ID_EXTRACT = "\tval syncIdExtract = regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncId\")";
 
     private Recorder recorder;
     private boolean recording;
+
+    private String proxyHost;
+    private String tempFilePath;
+    private String resourcesPath;
+    private String testName;
 
     private int concurrentUsers;
     private int rampUpTime;
     private int repeats;
     private int proxyPort;
-    private String proxyHost;
-    private String tempFilePath;
+
     private boolean testRefactoringEnabled;
     private boolean staticResourcesIngnoringEnabled;
 
@@ -56,7 +58,8 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     public void startRecording() {
         recorder = new Recorder(getProxyPort(), getProxyHost(),
-                getTempFilePath(), staticResourcesIngnoringEnabled);
+                getTempFilePath(), getResourcesPath(), getTestName(),
+                staticResourcesIngnoringEnabled);
         recording = true;
         recorder.start();
     }
@@ -134,17 +137,16 @@ public class LoadTestDriver extends PhantomJSDriver {
                             insertHelperMethods(lines);
                         }
 
-                        if (newLine.contains(".exec(http(")
-                                && !syncIdsInitialized) {
-                            lines.add("\t\t.exec(initSyncAndClientIds)");
-                            syncIdsInitialized = true;
+                        if (newLine.matches(".*\\?v-[0-9]{12,15}.*")) {
+                            lines.add(newLine);
+                            handleInitializationRequest(br, lines, newLine);
+                            continue;
                         }
 
-                        if (newLine.contains("RawFileBody")) {
-                            newLine = replaceWithStringBody(newLine);
-                            Logger.getLogger(Recorder.class.getName())
-                                    .info(newLine);
-                        }
+                        syncIdsInitialized = initializeSyncAndClientIdsIfNotDoneYet(
+                                syncIdsInitialized, newLine, lines);
+
+                        newLine = requestBodyTreatments(newLine);
                     }
 
                     if (newLine.contains("atOnceUsers")) {
@@ -171,6 +173,8 @@ public class LoadTestDriver extends PhantomJSDriver {
                 }
             }
 
+            addAdditionalImports(lines);
+
             final FileWriter fw = new FileWriter(file);
             final BufferedWriter bw = new BufferedWriter(fw);
             for (final String s : lines) {
@@ -179,7 +183,6 @@ public class LoadTestDriver extends PhantomJSDriver {
 
             bw.flush();
             bw.close();
-
         } catch (final FileNotFoundException e) {
             Logger.getLogger(Recorder.class.getName())
                     .severe("Failed to found file: " + fileName);
@@ -193,24 +196,95 @@ public class LoadTestDriver extends PhantomJSDriver {
         }
     }
 
-    private String replaceWithStringBody(String newLine) {
-        final Pattern pattern = Pattern.compile("\"(.*?)\"");
-        final Matcher matcher = pattern.matcher(newLine);
-        if (matcher.find()) {
-            final String fileName = matcher.group(1);
+    private void addAdditionalImports(List<String> lines) {
+        lines.add(0, "import io.gatling.core.body.ElFileBody");
+    }
+
+    private String requestBodyTreatments(String newLine) throws IOException {
+        if (newLine.contains("RawFileBody")) {
+            newLine = replaceWithELFileBody(newLine);
+            Logger.getLogger(Recorder.class.getName()).info(newLine);
+        }
+        return newLine;
+    }
+
+    private boolean initializeSyncAndClientIdsIfNotDoneYet(
+            boolean syncIdsInitialized, String newLine,
+            final List<String> lines) {
+        if (newLine.contains(".exec(http(") && !syncIdsInitialized) {
+            lines.add("\t\t.exec(initSyncAndClientIds)");
+            syncIdsInitialized = true;
+        }
+        return syncIdsInitialized;
+    }
+
+    private void handleInitializationRequest(BufferedReader br,
+            List<String> lines, String newLine) throws IOException {
+        while (!newLine.matches(".*body\\(RawFileBody.*")) {
+            newLine = br.readLine();
+        }
+        final String fileName = getRequestFileName(newLine);
+        if (fileName != null) {
             Logger.getLogger(Recorder.class.getName()).info(fileName);
-            String requesBody = readFileContent(
-                    recorder.getTempFilePath() + "/bodies/" + fileName);
+            final String requesBody = readRequestFileContent(fileName);
+            final String[] requestParameters = requesBody.split("&");
+            boolean lastParamLine = false;
+            for (final String requestParam : requestParameters) {
+                lastParamLine = requestParameters[requestParameters.length - 1]
+                        .equals(requestParam);
+                final String[] keyValuePair = requestParam.split("=");
+                if (keyValuePair[0].equals("v-loc")) {
+                    keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
+                    keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
+                }
+                String formattedParameterLine = String.format(
+                        "\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0],
+                        keyValuePair[1]);
+                if (lastParamLine) {
+                    formattedParameterLine += ")";
+                }
+                lines.add(formattedParameterLine);
+            }
+        }
+    }
+
+    private String replaceWithELFileBody(String newLine) throws IOException {
+        final String fileName = getRequestFileName(newLine);
+        if (fileName != null) {
+            Logger.getLogger(Recorder.class.getName()).info(fileName);
+            String requesBody = readRequestFileContent(fileName);
             requesBody = requesBody.replaceFirst("syncId\":[0-9]+",
                     Matcher.quoteReplacement("syncId\":${syncId}"));
             requesBody = requesBody.replaceFirst("clientId\":[0-9]+",
                     Matcher.quoteReplacement("clientId\":${clientId}"));
-            requesBody = "\"\"\"" + requesBody + "\"\"\"";
-            newLine = newLine.replaceFirst("RawFileBody", "StringBody");
-            newLine = newLine.replaceFirst("\"(.*?)\"",
-                    Matcher.quoteReplacement("\"" + requesBody + "\""));
+            saveRequestFile(recorder.getResourcesPath() + "/bodies/" + fileName,
+                    requesBody);
+            newLine = newLine.replaceFirst("RawFileBody", "ElFileBody");
         }
         return newLine;
+    }
+
+    private void saveRequestFile(String fileName, String requesBody)
+            throws IOException {
+        final File requestFile = new File(fileName);
+        final FileWriter requestWriter = new FileWriter(requestFile, false);
+        requestWriter.write(requesBody);
+        requestWriter.close();
+    }
+
+    private String getRequestFileName(String line) {
+        final Pattern pattern = Pattern.compile("\"(.*?)\"");
+        final Matcher matcher = pattern.matcher(line);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    private String readRequestFileContent(final String fileName) {
+        final String requesBody = readFileContent(
+                recorder.getResourcesPath() + "/bodies/" + fileName);
+        return requesBody;
     }
 
     private String readFileContent(String filename) {
@@ -271,8 +345,24 @@ public class LoadTestDriver extends PhantomJSDriver {
         return tempFilePath;
     }
 
+    private String getResourcesPath() {
+        return resourcesPath;
+    }
+
+    private String getTestName() {
+        return testName;
+    }
+
     public void setTempFilePath(String tempFilePath) {
         this.tempFilePath = tempFilePath;
+    }
+
+    public void setResourcesPath(String resourcesPath) {
+        this.resourcesPath = resourcesPath;
+    }
+
+    public void setTestName(String testName) {
+        this.testName = testName;
     }
 
     public void setTestRefactoringEnabled(boolean testRefactoringEnabled) {
@@ -299,7 +389,7 @@ public class LoadTestDriver extends PhantomJSDriver {
             cmd.append(" -sf ");
             cmd.append(recorder.getTempFilePath());
             cmd.append(" -bf ");
-            cmd.append(recorder.getTempFilePath());
+            cmd.append(recorder.getResourcesPath());
             // cmd.append(" -ro ");
             // cmd.append(recorder.getTempFilePath()+"/results");
 
@@ -338,7 +428,7 @@ public class LoadTestDriver extends PhantomJSDriver {
         propsBuilder.binariesDirectory(
                 recorder.getTempFilePath() + "/test-classes");
         propsBuilder.outputDirectoryBaseName(recorder.getTempFilePath());
-        propsBuilder.resultsDirectory(recorder.getTempFilePath() + "/results");
+        propsBuilder.resultsDirectory(recorder.getResourcesPath() + "/results");
         propsBuilder.sourcesDirectory(recorder.getTempFilePath());
         propsBuilder.bodiesDirectory(recorder.getBodiesFolderPath());
         propsBuilder.dataDirectory(recorder.getDataFolderPath());
@@ -362,7 +452,7 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private File findReportFile() {
         Logger.getLogger(Recorder.class.getName()).info("findReportFile");
-        final File dir = new File(recorder.getTempFilePath() + "/..");
+        final File dir = new File(recorder.getResourcesPath() + "/..");
         final FileFilter fileFilter = new WildcardFileFilter("gatling-*");
         final File[] files = dir.listFiles(fileFilter);
 
@@ -394,101 +484,12 @@ public class LoadTestDriver extends PhantomJSDriver {
         }
     }
 
-    public static class LoadTestDriverBuilder {
-
-        private static final int DEFAULT_PROXY_PORT = 8888;
-
-        private String ipaddress;
-        private String proxyHost;
-        private String path;
-        private int concurrentUsers;
-        private int repeats;
-        private int rampUpTime;
-        private int proxyPort = DEFAULT_PROXY_PORT;
-        private boolean testRefactoringEnabled;
-        private boolean staticResourcesIngnoringEnabled;
-
-        public LoadTestDriverBuilder() {
-            ipaddress = "127.0.0.1";
-        }
-
-        public LoadTestDriverBuilder withIpAddress(String ipaddress) {
-            this.ipaddress = ipaddress;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withNumberOfConcurrentUsers(
-                int concurrentUsers) {
-            this.concurrentUsers = concurrentUsers;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withRepeats(int repeats) {
-            this.repeats = repeats;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withRampUpTimeInSeconds(int rampUpTime) {
-            this.rampUpTime = rampUpTime;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withProxyPort(int proxyPort) {
-            this.proxyPort = proxyPort;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withProxyHost(String proxyHost) {
-            this.proxyHost = proxyHost;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withPath(String path) {
-            this.path = path;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withTestRefactoring() {
-            testRefactoringEnabled = true;
-            return this;
-        }
-
-        public LoadTestDriverBuilder withStaticResourcesIngnoring() {
-            staticResourcesIngnoringEnabled = true;
-            return this;
-        }
-
-        public WebDriver build() {
-            final ArrayList<String> cliArgsCap = new ArrayList<>();
-            cliArgsCap.add("--web-security=false");
-            cliArgsCap.add("--load-images=false");
-            cliArgsCap.add("--ignore-ssl-errors=true");
-            cliArgsCap.add("--debug=true");
-            cliArgsCap.add("--proxy=" + ipaddress + ":" + proxyPort);
-            cliArgsCap.add("--proxy-type=http");
-
-            final ArrayList<String> cliArgsCap2 = new ArrayList<>();
-            cliArgsCap2.add("--logLevel=INFO");
-
-            final DesiredCapabilities capabilities = DesiredCapabilities
-                    .phantomjs();
-            capabilities.setCapability(
-                    PhantomJSDriverService.PHANTOMJS_CLI_ARGS, cliArgsCap);
-            capabilities.setCapability(
-                    PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS,
-                    cliArgsCap2);
-            final LoadTestDriver driver = new LoadTestDriver(capabilities);
-            driver.setConcurrentUsers(concurrentUsers);
-            driver.setRepeats(repeats);
-            driver.setRampUpTime(rampUpTime);
-            driver.setProxyPort(proxyPort);
-            driver.setProxyHost(proxyHost);
-            driver.setTempFilePath(path);
-            driver.setTestRefactoringEnabled(testRefactoringEnabled);
-            driver.withStaticResourcesIngnoringEnabled(
-                    staticResourcesIngnoringEnabled);
-            return driver;
-        }
+    public static String getLocalIpAddressUrlWithPort(int port) {
+        return "http://" + getLocalIpAddress() + ":" + port;
     }
 
+    public static String getLocalIpAddressWithPortAndContextPath(int port,
+            String contextPath) {
+        return getLocalIpAddressUrlWithPort(port) + "/ui";
+    }
 }

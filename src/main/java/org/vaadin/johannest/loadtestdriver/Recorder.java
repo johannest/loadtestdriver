@@ -23,8 +23,9 @@ public class Recorder {
 
     private final RecorderController recorderController;
 
-    private final String className;
+    private String className;
     private String tempFilePath;
+    private final String resourcesPath;
     private final String bodiesFolderPath;
     private final String dataFolderPath;
     private final String[] staticPatterns = { ".*\\.js", ".*\\.cache.js",
@@ -46,13 +47,35 @@ public class Recorder {
     }
 
     public Recorder(int proxyPort, String proxyHost, String tempFilePath) {
-        this(proxyPort, proxyHost, tempFilePath, false);
+        this(proxyPort, proxyHost, tempFilePath, tempFilePath, null, false);
     }
 
     public Recorder(int proxyPort, String proxyHost, String tempFilePath,
-            boolean ignoreStatics) {
+            String resourcesPath, String testName, boolean ignoreStatics) {
         Logger.getLogger(Recorder.class.getName())
                 .info(proxyHost + ":" + proxyPort);
+        getTempFilePath(tempFilePath);
+        getProxyHost(proxyHost);
+
+        this.resourcesPath = resourcesPath;
+        bodiesFolderPath = resourcesPath + "/bodies";
+        dataFolderPath = resourcesPath + "/data";
+
+        final Option<Path> path = createPathToRecorderConf();
+        final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$
+                .<String, Object> empty();
+        map.put("recorder.core.bodiesFolder", bodiesFolderPath);
+        // map.put("recorder.core.headless", true);
+
+        final RecorderPropertiesBuilder props = buildRecorderProperties(
+                proxyPort, tempFilePath, testName, ignoreStatics);
+
+        RecorderConfiguration.initialSetup(map, path);
+        RecorderConfiguration.reload(props.build());
+        recorderController = new RecorderController();
+    }
+
+    private void getTempFilePath(String tempFilePath) {
         this.tempFilePath = tempFilePath;
         if (tempFilePath == null || tempFilePath.isEmpty()) {
             this.tempFilePath = System.getProperty("java.io.tmpdir")
@@ -63,6 +86,9 @@ public class Recorder {
             this.tempFilePath = tempFilePath.substring(0,
                     tempFilePath.length() - 1);
         }
+    }
+
+    private void getProxyHost(String proxyHost) {
         if (proxyHost == null) {
             try {
                 proxyHost = InetAddress.getLocalHost().getHostAddress();
@@ -70,35 +96,40 @@ public class Recorder {
                 proxyHost = "127.0.0.1";
             }
         }
+    }
 
-        bodiesFolderPath = tempFilePath + "/bodies";
-        dataFolderPath = tempFilePath + "/data";
+    private Option<Path> createPathToRecorderConf() {
+        final Path pathToRecorderConf = FileSystems.getDefault()
+                .getPath("recorder.conf");
+        Logger.getLogger(Recorder.class.getName())
+                .info(pathToRecorderConf.toString());
+        final Option<Path> path = Option.apply(pathToRecorderConf);
+        return path;
+    }
 
-        final Path path2 = FileSystems.getDefault().getPath("recorder.conf");
-        Logger.getLogger(Recorder.class.getName()).info(path2.toString());
-        final Option<Path> path = Option.apply(path2);
-        final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$
-                .<String, Object> empty();
-        map.put("recorder.core.bodiesFolder", bodiesFolderPath);
-        // map.put("recorder.core.headless", true);
-
+    private RecorderPropertiesBuilder buildRecorderProperties(int proxyPort,
+            String tempFilePath, String testName, boolean ignoreStatics) {
         final RecorderPropertiesBuilder props = new RecorderPropertiesBuilder();
         props.mode(RecorderMode.apply("Proxy"));
         props.localPort(proxyPort);
-        className = "SIMx" + new Random().nextInt(100000);
-        props.simulationClassName(className);
+        if (testName == null) {
+            props.simulationClassName(className = randomName());
+        }
+        props.simulationClassName(className = testName);
         props.simulationOutputFolder(tempFilePath);
         props.followRedirect(true);
         props.removeCacheHeaders(true);
         props.inferHtmlResources(false);
+        props.automaticReferer(true);
         if (ignoreStatics) {
             props.filterStrategy("BlacklistFirst");
             props.blacklist(Arrays.asList(staticPatterns));
         }
+        return props;
+    }
 
-        RecorderConfiguration.initialSetup(map, path);
-        RecorderConfiguration.reload(props.build());
-        recorderController = new RecorderController();
+    private String randomName() {
+        return "SIMx" + new Random().nextInt(10000);
     }
 
     public void start() {
@@ -108,7 +139,7 @@ public class Recorder {
     }
 
     public String stopAndSave() {
-        removePreviousTests();
+        // removePreviousTests();
         final String fileName = new StringBuilder(tempFilePath).append('/')
                 .append(className).toString();
         Logger.getLogger(Recorder.class.getName())
@@ -127,6 +158,10 @@ public class Recorder {
 
     public String getTempFilePath() {
         return tempFilePath;
+    }
+
+    public String getResourcesPath() {
+        return resourcesPath;
     }
 
     public String getBodiesFolderPath() {
