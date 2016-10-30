@@ -32,7 +32,7 @@ import scala.collection.mutable.StringBuilder;
 public class LoadTestDriver extends PhantomJSDriver {
 
     private static final String SYNC_AND_CLIENT_ID_INIT = "\tval initSyncAndClientIds = exec((session) => {\n\t\tsession.setAll(\n\t\t\t\"syncId\" -> 0,\n\t\t\t\"clientId\" -> 0\n\t\t\t)})";
-    private static final String SEC_TOKEN_EXTRACT = "\tval xsrfTokenExtract = regex(\"\"\"Vaadin-Security-Key\\\":\\\"([^\\]+)\"\"\").saveAs(\"seckey\")";
+    private static final String XSRF_TOKEN_EXTRACT = "\tval xsrfTokenExtract = regex(\"\"\"Vaadin-Security-Key\\\\\":\\\\\"([^\\\\]+)\"\"\").saveAs(\"seckey\")";
     private static final String CLIENT_ID_EXTRACT = "\tval clientIdExtract = regex(\"\"\"clientId\": ([0-9]*),\"\"\").saveAs(\"clientId\")";
     private static final String SYNC_ID_EXTRACT = "\tval syncIdExtract = regex(\"\"\"syncId\": ([0-9]*),\"\"\").saveAs(\"syncId\")";
 
@@ -228,24 +228,19 @@ public class LoadTestDriver extends PhantomJSDriver {
             Logger.getLogger(Recorder.class.getName()).info(fileName);
             final String requesBody = readRequestFileContent(fileName);
             final String[] requestParameters = requesBody.split("&");
-            boolean lastParamLine = false;
             for (final String requestParam : requestParameters) {
-                lastParamLine = requestParameters[requestParameters.length - 1]
-                        .equals(requestParam);
                 final String[] keyValuePair = requestParam.split("=");
                 if (keyValuePair[0].equals("v-loc")) {
                     keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
                     keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
                 }
-                String formattedParameterLine = String.format(
+                final String formattedParameterLine = String.format(
                         "\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0],
                         keyValuePair[1]);
-                if (lastParamLine) {
-                    formattedParameterLine += ")";
-                }
                 lines.add(formattedParameterLine);
             }
         }
+        lines.add("\t\t\t.check(xsrfTokenExtract))");
     }
 
     private String replaceWithELFileBody(String newLine) throws IOException {
@@ -257,6 +252,8 @@ public class LoadTestDriver extends PhantomJSDriver {
                     Matcher.quoteReplacement("syncId\":${syncId}"));
             requesBody = requesBody.replaceFirst("clientId\":[0-9]+",
                     Matcher.quoteReplacement("clientId\":${clientId}"));
+            requesBody = requesBody.replaceFirst("csrfToken\":\"[a-z0-9\\-]+\"",
+                    Matcher.quoteReplacement("csrfToken\":\"${seckey}\""));
             saveRequestFile(recorder.getResourcesPath() + "/bodies/" + fileName,
                     requesBody);
             newLine = newLine.replaceFirst("RawFileBody", "ElFileBody");
@@ -309,7 +306,7 @@ public class LoadTestDriver extends PhantomJSDriver {
         lines.add("\n");
         lines.add(SYNC_ID_EXTRACT);
         lines.add(CLIENT_ID_EXTRACT);
-        lines.add(SEC_TOKEN_EXTRACT);
+        lines.add(XSRF_TOKEN_EXTRACT);
         lines.add("\n");
     }
 
