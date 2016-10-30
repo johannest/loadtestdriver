@@ -1,44 +1,46 @@
 loadtestdriver
 ==============
 
-Template for a simple Vaadin application that only requires a Servlet 3.0 container to run.
+WebDriver for recording a Gatling load test, from a TestBench test
 
 
 Workflow
 ========
 
-To compile the entire project, run "mvn install".
-To run the application, run "mvn jetty:run" and open http://localhost:8080/ .
+1. Add dependency to your pom.xml:
+```
+<dependency>
+	<groupId>org.vaadin.johannest</groupId>
+	<artifactId>loadtestdriver</artifactId>
+	<version>0.0.1</version>
+</dependency> 
+``
 
-To develop the theme, simply update the relevant theme files and reload the application.
-Pre-compiling a theme eliminates automatic theme updates at runtime - see below for more information.
+2. Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method:
+```
+@Before
+public void setUp() throws Exception {
+	WebDriver driver = new LoadTestDriverBuilder().
+			withIpAddress(LoadTestDriver.getLocalIpAddress()).
+			withNumberOfConcurrentUsers(1).
+			withRampUpTimeInSeconds(1).
+			withTestName("MyUI_ScalabilityTest").
+			withPath("/Users/jotatu/Desktop/gatling").
+			withResourcesPath("/Users/jotatu/Desktop/gatling").
+			withStaticResourcesIngnoring().
+			withTestRefactoring().
+			build();
+	setDriver(driver);
+//		setDriver(new ChromeDriver());	
+}
+```
 
-Debugging client side code
-  - run "mvn vaadin:run-codeserver" on a separate console while the application is running
-  - activate Super Dev Mode in the debug window of the application
+3. Configure your TestBench test to open the application to be tested with your ip address:
+```
+private void openTestUrl() {
+	// opens URL http://your.local.ip.address:8080/ui
+    getDriver().get(LoadTestDriver.getLocalIpAddressWithPortAndContextPath(8080,"ui"));
+}
+```
 
-To produce a deployable production mode WAR:
-- change productionMode to true in the servlet class configuration (nested in the UI class)
-- run "mvn clean vaadin:compile-theme package"
-  - See below for more information. Running "mvn clean" removes the pre-compiled theme.
-- test with "mvn jetty:run-war
-
-Using a precompiled theme
--------------------------
-
-When developing the application, Vaadin can compile the theme on the fly when needed,
-or the theme can be precompiled to speed up page loads.
-
-To precompile the theme run "mvn vaadin:compile-theme". Note, though, that once
-the theme has been precompiled, any theme changes will not be visible until the
-next theme compilation or running the "mvn clean" target.
-
-When developing the theme, running the application in the "run" mode (rather than
-in "debug") in the IDE can speed up consecutive on-the-fly theme compilations
-significantly.
-
-Using Vaadin pre-releases
--------------------------
-
-If Vaadin pre-releases are not enabled by default, use the Maven parameter
-"-P vaadin-prerelease" or change the activation default value of the profile in pom.xml .
+4. Run the test as a JUnit test: LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
