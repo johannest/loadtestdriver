@@ -6,10 +6,10 @@ Probably the easiest way to quickly record a scalability/load test for a Vaadin 
 
 Workflow
 ========
-0. Install PhantomJS (>=2.0.0) to your computer, verify that it is your path by executing: `phantomjs -v`on the command prompt
+* Install PhantomJS (>=2.0.0) to your computer, verify that it is your path by executing: `phantomjs -v`on the command prompt
 
 
-1. Add dependency to your pom.xml:
+* Add dependency to your pom.xml:
 ```
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
@@ -18,7 +18,7 @@ Workflow
 </dependency> 
 ```
 
-2. Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method:
+* Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method:
 ```
 @Before
 public void setUp() throws Exception {
@@ -37,7 +37,7 @@ public void setUp() throws Exception {
 }
 ```
 
-3. Configure your TestBench test to open the application to be tested with your ip address:
+* Configure your TestBench test to open the application to be tested with your ip address:
 ```
 private void openTestUrl() {
 	// opens URL http://your.local.ip.address:8080/ui
@@ -45,4 +45,4 @@ private void openTestUrl() {
 }
 ```
 
-4. Run the test as a JUnit test: LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
+* Run the test as a JUnit test: LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
