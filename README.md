@@ -1,7 +1,7 @@
-loadtestdriver
+LoadTestDriver
 ==============
-
-WebDriver for recording a Gatling load test, from a TestBench test
+WebDriver for recording a Gatling load test, from an existing TestBench test.
+Probably the easiest way to quickly record a scalability/load test for a Vaadin web application
 
 
 Workflow
@@ -16,7 +16,7 @@ Workflow
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.0.1</version>
 </dependency> 
-``
+```
 
 2. Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method:
 ```
