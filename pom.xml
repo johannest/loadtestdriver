@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.0.1</version>
+	<version>0.0.2</version>
 	<name>LoadTestDriver add-on</name>
 	
 	<prerequisites>
@@ -70,18 +70,9 @@
 			<artifactId>vaadin-server</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-client-compiler</artifactId>
-		</dependency>
-		<dependency>
 		   <groupId>com.vaadin</groupId>
 		   <artifactId>vaadin-testbench</artifactId>
 		   <version>4.1.0.alpha2</version>
-		</dependency>
-		<dependency>
-   			<groupId>com.vaadin.addon</groupId>
-   			<artifactId>vaadin-charts</artifactId>
-   			<version>3.0.0-alpha9</version>
 		</dependency>
 		
 		<!-- Gatling dependencies -->
@@ -163,26 +154,6 @@
 				</configuration>
 			</plugin>
 			<plugin>
-                <groupId>com.vaadin</groupId>
-                <artifactId>vaadin-maven-plugin</artifactId>
-                <configuration>
-                    <extraJvmArgs>-Xmx512M -Xss1024k</extraJvmArgs>
-                    <webappDirectory>${basedir}/target/classes/VAADIN/widgetsets</webappDirectory>
-                    <draftCompile>true</draftCompile>
-                    <compileReport>false</compileReport>
-                    <style>OBF</style>
-                    <strict>true</strict>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>update-widgetset</goal>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.3.1</version>
@@ -197,7 +168,6 @@
 							<!-- Package format version - do not change -->
 							<Vaadin-Package-Version>1</Vaadin-Package-Version>
 							<Vaadin-License-Title>${Vaadin-License-Title}</Vaadin-License-Title>
-							<Vaadin-Widgetsets>org.vaadin.johannest.loadtestdriver.LoadTestMonitorWidgetset</Vaadin-Widgetsets>
 						</manifestEntries>
 					</archive>
 					<excludes>
