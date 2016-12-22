@@ -15,6 +15,12 @@ import com.vaadin.shared.communication.PushMode;
 import com.vaadin.shared.ui.ui.Transport;
 import com.vaadin.ui.UI;
 
+/**
+ * Experimental LoadTestMonitor UI
+ * 
+ * @author jotatu
+ *
+ */
 @Theme("valo")
 @Widgetset("org.vaadin.johannest.loadtestdriver.LoadTestMonitorWidgetset")
 @Push(value = PushMode.AUTOMATIC, transport = Transport.WEBSOCKET)
