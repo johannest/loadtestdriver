@@ -46,6 +46,7 @@ public void setUp() throws Exception {
 ```
 
 ### Verify that the logged in user has write access to the directory(ies) specified above TestBench test setup.
+LoadTestDriver stores a recorded scala script by default in the System's tmp-folder, but you can specify used output folder like in above example. Make sure that you have a write access to that folder.
 
 ### Configure your TestBench test to open the application to be tested with your ip address:
 ```
