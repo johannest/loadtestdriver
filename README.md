@@ -11,7 +11,7 @@ Workflow
 C:\Users\IEUser>phantomjs -v
 2.1.1
 ```
-In Windows you have to add the path of PhantomJs' bin folder (e.g. 'C:\phantomjs-2.1.1-windows\phantomjs-2.1.1-windows\bin') into Path System Variable (in Advanced System Settings -> Environment Variables).
+In Windows you have to add the path of PhantomJs' bin folder (e.g. `C:\phantomjs-2.1.1-windows\phantomjs-2.1.1-windows\bin`) into Path System Variable (in Advanced System Settings -> Environment Variables).
 
 * Add dependency to your pom.xml:
 ```
