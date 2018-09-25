@@ -1,8 +1,6 @@
 package org.vaadin.johannest.loadtestdriver;
 
 import java.io.File;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -22,16 +20,14 @@ import scala.collection.mutable.StringBuilder;
 public class Recorder {
 
     private final RecorderController recorderController;
-
-    private String className;
-    private String tempFilePath;
     private final String resourcesPath;
     private final String bodiesFolderPath;
     private final String dataFolderPath;
-    private final String[] staticPatterns = { ".*\\.js", ".*\\.cache.js",
-            ".*\\.css", ".*\\.gif", ".*\\.jpeg", ".*\\.jpg", ".*\\.ico",
-            ".*\\.woff", ".*\\.ttf", ".*\\.otf", ".*\\.png", ".*\\.css?(.*)",
-            ".*\\.js?(.*)" };
+    private final String[] staticPatterns = { ".*\\.js", ".*\\.cache.js", ".*\\.css", ".*\\.gif", ".*\\.jpeg",
+            ".*\\.jpg", ".*\\.ico", ".*\\.woff", ".*\\.ttf", ".*\\.otf", ".*\\.png", ".*\\.css?(.*)", ".*\\.js?(.*)" };
+    private final boolean headlessEnabled;
+    private String className;
+    private String tempFilePath;
 
     public Recorder() {
         this(8888);
@@ -42,33 +38,30 @@ public class Recorder {
     }
 
     public Recorder(int proxyPort, String proxyHost) {
-        this(proxyPort, proxyHost,
-                System.getProperty("java.io.tmpdir") + "gatling");
+        this(proxyPort, proxyHost, System.getProperty("java.io.tmpdir") + "gatling");
     }
 
     public Recorder(int proxyPort, String proxyHost, String tempFilePath) {
-        this(proxyPort, proxyHost, tempFilePath, tempFilePath, null, false);
+        this(proxyPort, proxyHost, tempFilePath, tempFilePath, null, false, false);
     }
 
-    public Recorder(int proxyPort, String proxyHost, String tempFilePath,
-            String resourcesPath, String testName, boolean ignoreStatics) {
-        Logger.getLogger(Recorder.class.getName())
-                .info(proxyHost + ":" + proxyPort);
+    public Recorder(int proxyPort, String proxyHost, String tempFilePath, String resourcesPath, String testName,
+            boolean ignoreStatics, boolean headlessEnabled) {
+        this.headlessEnabled = headlessEnabled;
+        Logger.getLogger(Recorder.class.getName()).info(proxyHost + ":" + proxyPort);
         getTempFilePath(tempFilePath);
-        getProxyHost(proxyHost);
 
         this.resourcesPath = resourcesPath;
         bodiesFolderPath = resourcesPath + "/bodies";
         dataFolderPath = resourcesPath + "/data";
 
         final Option<Path> path = createPathToRecorderConf();
-        final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$
-                .<String, Object> empty();
+        final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$.<String, Object> empty();
         map.put("recorder.core.bodiesFolder", bodiesFolderPath);
-        // map.put("recorder.core.headless", true);
+        map.put("recorder.core.headless", headlessEnabled);
 
-        final RecorderPropertiesBuilder props = buildRecorderProperties(
-                proxyPort, tempFilePath, testName, ignoreStatics);
+        final RecorderPropertiesBuilder props = buildRecorderProperties(proxyPort, tempFilePath, testName,
+                ignoreStatics);
 
         RecorderConfiguration.initialSetup(map, path);
         RecorderConfiguration.reload(props.build());
@@ -78,37 +71,21 @@ public class Recorder {
     private void getTempFilePath(String tempFilePath) {
         this.tempFilePath = tempFilePath;
         if (tempFilePath == null || tempFilePath.isEmpty()) {
-            this.tempFilePath = System.getProperty("java.io.tmpdir")
-                    + "gatling";
-        }
-        if (tempFilePath.charAt(tempFilePath.length() - 1) == '/'
-                || tempFilePath.charAt(tempFilePath.length() - 1) == '\\') {
-            this.tempFilePath = tempFilePath.substring(0,
-                    tempFilePath.length() - 1);
-        }
-    }
-
-    private void getProxyHost(String proxyHost) {
-        if (proxyHost == null) {
-            try {
-                proxyHost = InetAddress.getLocalHost().getHostAddress();
-            } catch (final UnknownHostException e) {
-                proxyHost = "127.0.0.1";
-            }
+            this.tempFilePath = System.getProperty("java.io.tmpdir") + "gatling";
+        } else if (tempFilePath.charAt(tempFilePath.length() - 1) == '/' ||
+                tempFilePath.charAt(tempFilePath.length() - 1) == '\\') {
+            this.tempFilePath = tempFilePath.substring(0, tempFilePath.length() - 1);
         }
     }
 
     private Option<Path> createPathToRecorderConf() {
-        final Path pathToRecorderConf = FileSystems.getDefault()
-                .getPath("recorder.conf");
-        Logger.getLogger(Recorder.class.getName())
-                .info(pathToRecorderConf.toString());
-        final Option<Path> path = Option.apply(pathToRecorderConf);
-        return path;
+        final Path pathToRecorderConf = FileSystems.getDefault().getPath("recorder.conf");
+        Logger.getLogger(Recorder.class.getName()).info(pathToRecorderConf.toString());
+        return Option.apply(pathToRecorderConf);
     }
 
-    private RecorderPropertiesBuilder buildRecorderProperties(int proxyPort,
-            String tempFilePath, String testName, boolean ignoreStatics) {
+    private RecorderPropertiesBuilder buildRecorderProperties(int proxyPort, String tempFilePath, String testName,
+            boolean ignoreStatics) {
         final RecorderPropertiesBuilder props = new RecorderPropertiesBuilder();
         props.mode(RecorderMode.apply("Proxy"));
         props.localPort(proxyPort);
@@ -121,6 +98,7 @@ public class Recorder {
         props.removeCacheHeaders(true);
         props.inferHtmlResources(false);
         props.automaticReferer(true);
+        props.checkResponseBodies(true);
         if (ignoreStatics) {
             props.filterStrategy("BlacklistFirst");
             props.blacklist(Arrays.asList(staticPatterns));
@@ -132,19 +110,23 @@ public class Recorder {
         return "SIMx" + new Random().nextInt(10000);
     }
 
-    public void start() {
-        Logger.getLogger(Recorder.class.getName())
-                .info("Starting the recording");
+    void start() {
+        Logger.getLogger(Recorder.class.getName()).info("Starting the recording");
         recorderController.startRecording();
     }
 
-    public String stopAndSave() {
+    String stopAndSave() {
+        System.out.println("### stopAndSave");
         // removePreviousTests();
-        final String fileName = new StringBuilder(tempFilePath).append('/')
-                .append(className).toString();
-        Logger.getLogger(Recorder.class.getName())
-                .info("Saving the recording: " + fileName);
-        recorderController.stopRecording(true);
+        final String fileName = new StringBuilder(tempFilePath).append('/').append(className).toString();
+        Logger.getLogger(Recorder.class.getName()).info("Saving the recording: " + fileName);
+        try {
+            recorderController.stopRecording(true);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            Logger.getLogger(Recorder.class.getName()).severe("Saving failed: "+e.getMessage());
+        }
+        System.out.println("### Saved: "+fileName);
         return fileName;
     }
 
@@ -152,23 +134,23 @@ public class Recorder {
         FileUtils.deleteQuietly(new File(tempFilePath));
     }
 
-    public String getClassName() {
+    String getClassName() {
         return className;
     }
 
-    public String getTempFilePath() {
+    String getTempFilePath() {
         return tempFilePath;
     }
 
-    public String getResourcesPath() {
+    String getResourcesPath() {
         return resourcesPath;
     }
 
-    public String getBodiesFolderPath() {
+    String getBodiesFolderPath() {
         return bodiesFolderPath;
     }
 
-    public String getDataFolderPath() {
+    String getDataFolderPath() {
         return dataFolderPath;
     }
 }

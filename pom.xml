@@ -5,22 +5,18 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.0.2</version>
+	<version>0.2.0</version>
 	<name>LoadTestDriver add-on</name>
-	
-	<prerequisites>
-        <maven>3</maven>
-    </prerequisites>
 
 	<properties>
-		<vaadin.version>7.7.3</vaadin.version>
-		<vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<gatling.version>2.2.2</gatling.version>
+
+		<gatling.version>2.3.1</gatling.version>
 		<scala.version>2.11.8</scala.version>
-		<vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
+		<vaadin.version>8.4.0</vaadin.version>
+		<test-bench-version>5.2.0</test-bench-version>
 		
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -28,8 +24,13 @@
 		<Implementation-Title>${project.name}</Implementation-Title>
 		<Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
 		<Vaadin-License-Title>Apache License 2.0</Vaadin-License-Title>
-		<Vaadin-Addon>${artifactId}-${project.version}.jar</Vaadin-Addon>
+		<Vaadin-Addon>${project.artifactId} -${project.version}.jar</Vaadin-Addon>
 	</properties>
+
+	<organization>
+		<name>Johannes Tuikkala, Vaadin</name>
+		<url>https://github.com/johannest/loadtestdriver</url>
+	</organization>
 
 	<licenses>
         <license>
@@ -65,14 +66,16 @@
 			<version>3.0.1</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Vaadin dependencies -->
 		<dependency>
 			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-server</artifactId>
+			<artifactId>vaadin-testbench-api</artifactId>
 		</dependency>
 		<dependency>
 		   <groupId>com.vaadin</groupId>
 		   <artifactId>vaadin-testbench</artifactId>
-		   <version>4.1.0.alpha2</version>
+		   <version>${test-bench-version}</version>
 		</dependency>
 		
 		<!-- Gatling dependencies -->
@@ -101,21 +104,6 @@
     		<artifactId>gatling-compiler</artifactId>
     		<version>${gatling.version}</version>
   		</dependency>
-  		<dependency>
-			<groupId>io.gatling.highcharts</groupId>
-			<artifactId>gatling-charts-highcharts</artifactId>
-			<version>${gatling.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.gatling</groupId>
-			<artifactId>gatling-charts</artifactId>
-			<version>${gatling.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.gatling</groupId>
-			<artifactId>gatling-test-framework</artifactId>
-			<version>${gatling.version}</version>
-		</dependency>
 		
 	</dependencies>
 
@@ -139,7 +127,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-clean-plugin</artifactId>
-				<version>2.6.1</version>
+				<version>3.1.0</version>
 				<!-- Clean up also any pre-compiled themes -->
 				<configuration>
 					<filesets>
@@ -179,6 +167,7 @@
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+				<version>3.1.0</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <descriptors>

@@ -22,17 +22,20 @@ public class LoadTestDriverBuilder {
 
     private boolean testRefactoringEnabled;
     private boolean staticResourcesIngnoringEnabled;
+    private int minPause=-1;
+    private int maxPause=-1;
+    private boolean headlessEnabled;
 
     public LoadTestDriverBuilder() {
         ipaddress = "127.0.0.1";
     }
 
     /**
-     * In which ip address the test server is run. By default this is you local
-     * ip address
+     * In which ip address the test server is run. By default this is you local ip address
      *
      * @param ipaddress
-     * @return
+     *         ip address
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withIpAddress(String ipaddress) {
         this.ipaddress = ipaddress;
@@ -40,14 +43,13 @@ public class LoadTestDriverBuilder {
     }
 
     /**
-     * How many virtual/concurrent users the test should use. By default this is
-     * 1.
+     * How many virtual/concurrent users the test should use. By default this is 1.
      *
      * @param concurrentUsers
-     * @return
+     *         concurrent Users
+     * @return LoadTestDriverBuilder
      */
-    public LoadTestDriverBuilder withNumberOfConcurrentUsers(
-            int concurrentUsers) {
+    public LoadTestDriverBuilder withNumberOfConcurrentUsers(int concurrentUsers) {
         this.concurrentUsers = concurrentUsers;
         return this;
     }
@@ -56,7 +58,8 @@ public class LoadTestDriverBuilder {
      * How many times the test is repeated. By default this is 1.
      *
      * @param repeats
-     * @return
+     *         repeats
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withRepeats(int repeats) {
         this.repeats = repeats;
@@ -64,11 +67,11 @@ public class LoadTestDriverBuilder {
     }
 
     /**
-     * Test's ramp up time to throw given amount of virtual users in. By default
-     * this is 1s.
+     * Test's ramp up time to throw given amount of virtual users in. By default this is 1s.
      *
      * @param rampUpTime
-     * @return
+     *         ramp Up Time
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withRampUpTimeInSeconds(int rampUpTime) {
         this.rampUpTime = rampUpTime;
@@ -79,7 +82,8 @@ public class LoadTestDriverBuilder {
      * Modify proxy's (used to record requests) port. By default this is 8888.
      *
      * @param proxyPort
-     * @return
+     *         proxy Port
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withProxyPort(int proxyPort) {
         this.proxyPort = proxyPort;
@@ -90,7 +94,8 @@ public class LoadTestDriverBuilder {
      * Path where the test script is saved.
      *
      * @param path
-     * @return
+     *         path
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withPath(String path) {
         testPath = path;
@@ -101,7 +106,8 @@ public class LoadTestDriverBuilder {
      * Name for the test script. If not specified a random name is generated.
      *
      * @param name
-     * @return
+     *         name
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withTestName(String name) {
         testName = name;
@@ -109,11 +115,11 @@ public class LoadTestDriverBuilder {
     }
 
     /**
-     * Path for test resources such as request bodies folder. If not specified,
-     * testPath + "/bodies" folder is used.
+     * Path for test resources such as request bodies folder. If not specified, testPath + "/bodies" folder is used.
      *
-     * @param name
-     * @return
+     * @param path
+     *         path
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withResourcesPath(String path) {
         resourcesPath = path;
@@ -123,7 +129,7 @@ public class LoadTestDriverBuilder {
     /**
      * Modify the test script by adding Vaadin related things to it
      *
-     * @return
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withTestRefactoring() {
         testRefactoringEnabled = true;
@@ -133,10 +139,32 @@ public class LoadTestDriverBuilder {
     /**
      * Ignore static resources such as .css, .js files and images
      *
-     * @return
+     * @return LoadTestDriverBuilder
      */
     public LoadTestDriverBuilder withStaticResourcesIngnoring() {
         staticResourcesIngnoringEnabled = true;
+        return this;
+    }
+
+
+    /**
+     * Add pauses between xhr requests (uniform random pause(minPause, maxPause)
+     *
+     * @return LoadTestDriverBuilder
+     */
+    public LoadTestDriverBuilder withMinAndMaxPausesBetweenRequests(int minPause, int maxPause) {
+        this.minPause = minPause;
+        this.maxPause = maxPause;
+        return this;
+    }
+
+    /**
+     * Try going headless
+     *
+     * @return LoadTestDriverBuilder
+     */
+    public LoadTestDriverBuilder withHeadlessEnabled(boolean headlessEnabled) {
+        this.headlessEnabled = headlessEnabled;
         return this;
     }
 
@@ -152,26 +180,21 @@ public class LoadTestDriverBuilder {
         final ArrayList<String> cliArgsCap2 = new ArrayList<>();
         cliArgsCap2.add("--logLevel=INFO");
 
-        final DesiredCapabilities capabilities = DesiredCapabilities
-                .phantomjs();
-        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS,
-                cliArgsCap);
-        capabilities.setCapability(
-                PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS,
-                cliArgsCap2);
+        final DesiredCapabilities capabilities = DesiredCapabilities.phantomjs();
+        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS, cliArgsCap);
+        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS, cliArgsCap2);
 
-        final LoadTestDriver driver = new LoadTestDriver(capabilities);
-        driver.setConcurrentUsers(concurrentUsers);
-        driver.setRepeats(repeats);
-        driver.setRampUpTime(rampUpTime);
+        LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
+                minPause, maxPause);
+
+        final LoadTestDriver driver = new LoadTestDriver(capabilities, loadTestParameters, headlessEnabled);
         driver.setProxyHost(ipaddress);
         driver.setProxyPort(proxyPort);
         driver.setTempFilePath(testPath);
         driver.setResourcesPath(resourcesPath);
         driver.setTestName(testName);
-        driver.setTestRefactoringEnabled(testRefactoringEnabled);
-        driver.withStaticResourcesIngnoringEnabled(
-                staticResourcesIngnoringEnabled);
+        driver.setTestConfiguringEnabled(testRefactoringEnabled);
+        driver.withStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
         return driver;
     }
 }
