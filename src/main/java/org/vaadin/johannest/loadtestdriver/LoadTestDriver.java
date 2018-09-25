@@ -9,7 +9,7 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 
 public class LoadTestDriver extends PhantomJSDriver {
 
-    private final LoadTestConfigurator loadTestConfigurator;
+    //private final LoadTestConfigurator loadTestConfigurator;
     private final boolean headlessEnabled;
 
     private Recorder recorder;
@@ -26,7 +26,7 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     public LoadTestDriver(DesiredCapabilities capabilities, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
         super(capabilities);
-        loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
+        //loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
         this.headlessEnabled = headlessEnabled;
     }
 
@@ -62,9 +62,9 @@ public class LoadTestDriver extends PhantomJSDriver {
         recorder = new Recorder(getProxyPort(), getProxyHost(), getTempFilePath(), getResourcesPath(), getTestName(),
                 staticResourcesIngnoringEnabled, headlessEnabled);
 
-        loadTestConfigurator.setClassName(recorder.getClassName());
-        loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
-        loadTestConfigurator.setTempFilePath(recorder.getTempFilePath());
+//        loadTestConfigurator.setClassName(recorder.getClassName());
+//        loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
+//        loadTestConfigurator.setTempFilePath(recorder.getTempFilePath());
 
         recording = true;
         recorder.start();
@@ -76,18 +76,7 @@ public class LoadTestDriver extends PhantomJSDriver {
             stopRecordingAndSaveResults();
             super.close();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
-            }
-        }
-    }
-
-    @Override
-    protected void stopClient() {
-        if (recording) {
-            stopRecordingAndSaveResults();
-            super.stopClient();
-            if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+//                loadTestConfigurator.configureTestFile();
             }
         }
     }
@@ -98,7 +87,7 @@ public class LoadTestDriver extends PhantomJSDriver {
             stopRecordingAndSaveResults();
             super.quit();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+//                loadTestConfigurator.configureTestFile();
             }
         }
     }
