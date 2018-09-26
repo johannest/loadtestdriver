@@ -2,9 +2,9 @@ package org.vaadin.johannest.loadtestdriver;
 
 import java.util.ArrayList;
 
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.phantomjs.PhantomJSDriverService;
-import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 public class LoadTestDriverBuilder {
 
@@ -169,25 +169,20 @@ public class LoadTestDriverBuilder {
     }
 
     public WebDriver build() {
-        final ArrayList<String> cliArgsCap = new ArrayList<>();
-        cliArgsCap.add("--web-security=false");
-        cliArgsCap.add("--load-images=false");
-        cliArgsCap.add("--ignore-ssl-errors=true");
-        cliArgsCap.add("--debug=true");
-        cliArgsCap.add("--proxy=" + ipaddress + ":" + proxyPort);
-        cliArgsCap.add("--proxy-type=http");
+        final ArrayList<String> cliArgs = new ArrayList<>();
+        cliArgs.add("--proxy-server=" + ipaddress + ":" + proxyPort);
 
-        final ArrayList<String> cliArgsCap2 = new ArrayList<>();
-        cliArgsCap2.add("--logLevel=INFO");
-
-        final DesiredCapabilities capabilities = DesiredCapabilities.phantomjs();
-        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS, cliArgsCap);
-        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS, cliArgsCap2);
+        ChromeOptions options = new ChromeOptions();
+        Proxy proxy = new Proxy();
+        proxy.setHttpProxy(ipaddress+":"+proxyPort);
+        options.setCapability("proxy", proxy);
+        options.addArguments(cliArgs);
+        options.setHeadless(headlessEnabled);
 
         LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
 
-        final LoadTestDriver driver = new LoadTestDriver(capabilities, loadTestParameters, headlessEnabled);
+        final LoadTestDriver driver = new LoadTestDriver(options, loadTestParameters, headlessEnabled);
         driver.setProxyHost(ipaddress);
         driver.setProxyPort(proxyPort);
         driver.setTempFilePath(testPath);
