@@ -82,17 +82,6 @@ public class LoadTestDriver extends PhantomJSDriver {
     }
 
     @Override
-    protected void stopClient() {
-        if (recording) {
-            stopRecordingAndSaveResults();
-            super.stopClient();
-            if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
-            }
-        }
-    }
-
-    @Override
     public void quit() {
         if (recording) {
             stopRecordingAndSaveResults();

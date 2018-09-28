@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1.6</version>
+	<version>0.2.0</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
@@ -15,7 +15,7 @@
 
 		<gatling.version>2.3.1</gatling.version>
 		<scala.version>2.11.8</scala.version>
-		<test-bench-version>4.2.2</test-bench-version>
+		<test-bench-version>5.2.0</test-bench-version>
 		
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -23,7 +23,7 @@
 		<Implementation-Title>${project.name}</Implementation-Title>
 		<Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
 		<Vaadin-License-Title>Apache License 2.0</Vaadin-License-Title>
-		<Vaadin-Addon>${project.artifactId} -${project.version}.jar</Vaadin-Addon>
+		<Vaadin-Addon>${project.artifactId}-${project.version}.jar</Vaadin-Addon>
 	</properties>
 
 	<organization>
