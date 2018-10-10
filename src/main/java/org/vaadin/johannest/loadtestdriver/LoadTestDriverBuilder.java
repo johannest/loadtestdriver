@@ -1,6 +1,9 @@
 package org.vaadin.johannest.loadtestdriver;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.phantomjs.PhantomJSDriverService;
@@ -169,6 +172,10 @@ public class LoadTestDriverBuilder {
     }
 
     public WebDriver build() {
+        return build(Collections.emptyMap());
+    }
+
+    public WebDriver build(Map<String, String> additionalCapabilities) {
         final ArrayList<String> cliArgsCap = new ArrayList<>();
         cliArgsCap.add("--web-security=false");
         cliArgsCap.add("--load-images=false");
@@ -183,6 +190,9 @@ public class LoadTestDriverBuilder {
         final DesiredCapabilities capabilities = DesiredCapabilities.phantomjs();
         capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS, cliArgsCap);
         capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS, cliArgsCap2);
+        for (Map.Entry<String,String> entry : additionalCapabilities.entrySet()) {
+            capabilities.setCapability(entry.getKey(),entry.getValue());
+        }
 
         LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
