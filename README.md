@@ -18,7 +18,7 @@ C:\Users\IEUser>phantomjs -v
 In Windows you have to add the path of PhantomJs' bin folder (e.g. `C:\phantomjs-2.1.1-windows\phantomjs-2.1.1-windows\bin`) into Path System Variable (in Advanced System Settings -> Environment Variables).
 
 ### Add dependency to your pom.xml
-```
+```xml
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
@@ -30,7 +30,7 @@ In Windows you have to add the path of PhantomJs' bin folder (e.g. `C:\phantomjs
 Verify that your application server works in your browser with your local IP address such as 192.168.12.3:8080. It is **not** enough that it works in `localhost:8080` or `127.0.0.1:8080` because of a limitation of PhantomJS. For example, in case of WildFly you can use command line parameter `-b 0.0.0.0` (https://bgasparotto.com/enable-wildfly-remote-access/)
 
 ### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method
-```
+```Java
 @Before
 public void setUp() throws Exception {
 	WebDriver driver = new LoadTestDriverBuilder().
@@ -52,7 +52,7 @@ public void setUp() throws Exception {
 LoadTestDriver stores a recorded scala script by default in the System's tmp-folder, but you can specify used output folder like in above example. Make sure that you have a write access to that folder.
 
 ### Configure your TestBench test to open the application to be tested with your ip address:
-```
+```Java
 private void openTestUrl() {
 	// opens URL http://your.local.ip.address:8080/ui
     getDriver().get(LoadTestDriver.getLocalIpAddressWithPortAndContextPath(8080,"ui"));
