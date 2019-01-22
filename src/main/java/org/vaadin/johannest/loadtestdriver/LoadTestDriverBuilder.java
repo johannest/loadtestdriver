@@ -2,7 +2,6 @@ package org.vaadin.johannest.loadtestdriver;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import org.openqa.selenium.WebDriver;
@@ -204,7 +203,7 @@ public class LoadTestDriverBuilder {
         driver.setResourcesPath(resourcesPath);
         driver.setTestName(testName);
         driver.setTestConfiguringEnabled(testRefactoringEnabled);
-        driver.withStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
+        driver.setStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
         return driver;
     }
 }

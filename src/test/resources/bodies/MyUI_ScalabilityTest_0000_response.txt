@@ -15,9 +15,10 @@
     You have to enable javascript in your browser to use an application built with Vaadin.
    </noscript>
   </div>
-  <script type="text/javascript" src="./VAADIN/vaadinBootstrap.js?v=7.7.11"></script>
+  <script type="text/javascript" src="./VAADIN/vaadinPush.debug.js?v=7.7.3"></script>
+  <script type="text/javascript" src="./VAADIN/vaadinBootstrap.js?v=7.7.3"></script>
   <script type="text/javascript">//<![CDATA[
-if (!window.vaadin) alert("Failed to load the bootstrap javascript: ./VAADIN/vaadinBootstrap.js?v=7.7.11");
+if (!window.vaadin) alert("Failed to load the bootstrap javascript: ./VAADIN/vaadinBootstrap.js?v=7.7.3");
 if (typeof window.__gwtStatsEvent != 'function') {
 vaadin.gwtStatsEvents = [];
 window.__gwtStatsEvent = function(event) {vaadin.gwtStatsEvents.push(event); return true;};
@@ -25,7 +26,7 @@ window.__gwtStatsEvent = function(event) {vaadin.gwtStatsEvents.push(event); ret
 vaadin.initApplication("ROOT-2521314",{
     "theme": "mytheme",
     "versionInfo": {
-        "vaadinVersion": "7.7.11",
+        "vaadinVersion": "7.7.3",
         "atmosphereVersion": "2.2.9.vaadin2"
     },
     "widgetset": "org.vaadin.test.webinar.MyAppWidgetset",

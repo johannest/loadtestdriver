@@ -72,11 +72,11 @@ public class LoadTestRunner {
     private void runLoadTest() {
         final GatlingPropertiesBuilder propsBuilder = new GatlingPropertiesBuilder();
         propsBuilder.binariesDirectory(recorder.getTempFilePath() + "/test-classes");
-        propsBuilder.outputDirectoryBaseName(recorder.getTempFilePath());
+        propsBuilder.resourcesDirectory(recorder.getTempFilePath());
         propsBuilder.resultsDirectory(recorder.getResourcesPath() + "/results");
-        propsBuilder.sourcesDirectory(recorder.getTempFilePath());
-        propsBuilder.bodiesDirectory(recorder.getBodiesFolderPath());
-        propsBuilder.dataDirectory(recorder.getDataFolderPath());
+        propsBuilder.simulationsDirectory(recorder.getTempFilePath());
+        propsBuilder.resourcesDirectory(recorder.getBodiesFolderPath());
+        propsBuilder.resourcesDirectory(recorder.getDataFolderPath());
         final Map<String, Object> propsMap = propsBuilder.build();
         propsMap.put("gatling.core.mute", true);
         // propsMap.put("gatling.core.directory.reportsOnly",

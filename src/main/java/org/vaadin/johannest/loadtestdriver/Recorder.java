@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.Logger;
 
+import io.gatling.commons.util.DefaultClock;
 import org.apache.commons.io.FileUtils;
 
 import io.gatling.recorder.config.RecorderConfiguration;
@@ -65,7 +66,7 @@ public class Recorder {
 
         RecorderConfiguration.initialSetup(map, path);
         RecorderConfiguration.reload(props.build());
-        recorderController = new RecorderController();
+        recorderController = new RecorderController(new DefaultClock());
     }
 
     private void getTempFilePath(String tempFilePath) {
@@ -93,7 +94,7 @@ public class Recorder {
             props.simulationClassName(className = randomName());
         }
         props.simulationClassName(className = testName);
-        props.simulationOutputFolder(tempFilePath);
+        props.simulationsFolder(tempFilePath);
         props.followRedirect(true);
         props.removeCacheHeaders(true);
         props.inferHtmlResources(false);

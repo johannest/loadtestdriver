@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Strings;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;
@@ -63,6 +64,8 @@ public class LoadTestConfigurator {
     private Properties props;
     private List<String> lines;
     private List<String> connectorIdExtractors;
+
+    private Integer uidlHeadersNo;
 
     public LoadTestConfigurator(LoadTestParameters loadTestParameters) {
         this.loadTestParameters = loadTestParameters;
@@ -134,9 +137,11 @@ public class LoadTestConfigurator {
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
         boolean syncIdsInitialized = false;
         String line;
-        String newLine;
+        String newLine = null;
+        String previousLine = null;
 
         while ((line = br.readLine()) != null) {
+            previousLine = newLine;
             newLine = line;
 
             if (newLine.contains("val scn")) {
@@ -165,6 +170,10 @@ public class LoadTestConfigurator {
                 }
             }
 
+            extractUidlHeaderNumber(newLine, previousLine);
+
+            newLine = handleTryMax(br, newLine);
+
             newLine = requestBodyTreatments(newLine, saveResults);
 
             if (newLine.contains("atOnceUsers")) {
@@ -176,6 +185,50 @@ public class LoadTestConfigurator {
             lines.add(newLine);
         }
         br.close();
+    }
+
+    private void extractUidlHeaderNumber(String newLine, String previousLine) {
+        if (uidlHeadersNo==null && newLine.contains("headers(headers_") && previousLine!=null && previousLine.contains("UIDL/?v-uiId=")) {
+            try {
+                String[] s = newLine.split("_");
+                uidlHeadersNo = Integer.parseInt(s[1].substring(0, s[1].length()-1));
+            } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse headers no: "+newLine+" using the default value 2");
+                uidlHeadersNo = 2;
+            }
+        }
+    }
+
+    private String handleTryMax(BufferedReader br, String newLine) throws IOException {
+        if (newLine.contains(LoadTestDriver.INJECT_KEYWORD)) {
+            try {
+                String[] lineParts = newLine.substring(newLine.indexOf(LoadTestDriver.INJECT_KEYWORD)).split("\\.");
+                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-3]);
+                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-2]);
+                String regex = lineParts[lineParts.length-1];
+
+                lines.remove(lines.size()-1);
+
+                while (!Strings.isNullOrEmpty(newLine) && !newLine.matches(".*check.bodyBytes.is.*")) {
+                    newLine = br.readLine();
+                }
+                newLine = br.readLine();
+
+                lines.add("\t\t.tryMax("+maxTries+") {");
+                lines.add("\t\t\tpause("+pauseBetween+")");
+                lines.add("\t\t\t\t.exec(http(\"poll\")");
+                lines.add("\t\t\t\t\t.post(\"/UIDL/?v-uiId=0\")");
+                lines.add("\t\t\t\t\t.headers(headers_"+uidlHeadersNo+")");
+                lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId}}\"\"\")).asJson");
+                lines.add("\t\t\t\t\t.check(regex(\"\"\""+regex+"\"\"\"))");
+                lines.add("\t\t\t\t)");
+                lines.add("\t\t\t}");
+
+            } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse maxTry parameters: "+newLine);
+            }
+        }
+        return newLine;
     }
 
     private void addRegexExtractChecks() {
@@ -328,6 +381,11 @@ public class LoadTestConfigurator {
     private void handleInitializationRequest(BufferedReader br, List<String> lines, String newLine) throws IOException {
         while (newLine != null && !newLine.matches(".*body\\(RawFileBody.*")) {
             newLine = br.readLine();
+            if (newLine.contains("formParam")) {
+                // no need to manually convert initialization request
+                lines.add("\t\t\t.check(xsrfTokenExtract)");
+                return;
+            }
         }
 
         final String fileName = getRequestFileName(newLine);
