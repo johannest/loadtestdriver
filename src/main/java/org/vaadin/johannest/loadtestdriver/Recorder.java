@@ -22,7 +22,7 @@ public class Recorder {
 
     private final RecorderController recorderController;
     private final String resourcesPath;
-    private final String bodiesFolderPath;
+    private final String resourcesFolderPath;
     private final String dataFolderPath;
     private final String[] staticPatterns = { ".*\\.js", ".*\\.cache.js", ".*\\.css", ".*\\.gif", ".*\\.jpeg",
             ".*\\.jpg", ".*\\.ico", ".*\\.woff", ".*\\.ttf", ".*\\.otf", ".*\\.png", ".*\\.css?(.*)", ".*\\.js?(.*)" };
@@ -53,12 +53,12 @@ public class Recorder {
         getTempFilePath(tempFilePath);
 
         this.resourcesPath = resourcesPath;
-        bodiesFolderPath = resourcesPath + "/bodies";
+        resourcesFolderPath = resourcesPath + "/resources";
         dataFolderPath = resourcesPath + "/data";
 
         final Option<Path> path = createPathToRecorderConf();
         final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$.<String, Object> empty();
-        map.put("recorder.core.bodiesFolder", bodiesFolderPath);
+        map.put("recorder.core.resourcesFolder", resourcesFolderPath);
         map.put("recorder.core.headless", headlessEnabled);
 
         final RecorderPropertiesBuilder props = buildRecorderProperties(proxyPort, tempFilePath, testName,
@@ -95,6 +95,7 @@ public class Recorder {
         }
         props.simulationClassName(className = testName);
         props.simulationsFolder(tempFilePath);
+        props.resourcesFolder(tempFilePath+"/resources");
         props.followRedirect(true);
         props.removeCacheHeaders(true);
         props.inferHtmlResources(false);
@@ -147,8 +148,8 @@ public class Recorder {
         return resourcesPath;
     }
 
-    String getBodiesFolderPath() {
-        return bodiesFolderPath;
+    String getResourcesFolderPath() {
+        return resourcesFolderPath;
     }
 
     String getDataFolderPath() {

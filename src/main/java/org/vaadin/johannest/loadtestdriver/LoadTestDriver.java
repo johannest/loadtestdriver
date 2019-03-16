@@ -184,7 +184,7 @@ public class LoadTestDriver extends PhantomJSDriver {
      * @param responseRegex regular expression for successful response
      */
     public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex) {
-        ((JavascriptExecutor)this).executeScript("window.open('" + DEFAULT_PING_URL + INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+"','_blank');");
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex);
     }
 
     /**
@@ -196,7 +196,12 @@ public class LoadTestDriver extends PhantomJSDriver {
      * @param responseRegex regular expression for successful response
      */
     public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex) {
-        ((JavascriptExecutor)this).executeScript("window.open('"+pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+"','_blank');");
+        ((JavascriptExecutor)this).executeScript("window.open('"+pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+".','_blank');");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

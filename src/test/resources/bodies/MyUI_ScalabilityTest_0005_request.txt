@@ -1,1 +1,1 @@
-{"csrfToken":"f078d8ee-9df5-4bba-a63a-e93b26a8206a","rpc":[["28","v","v",["text",["s",""]]],["28","v","v",["c",["i",0]]]],"syncId":2,"clientId":2}
+{"csrfToken":"${seckey}","rpc":[["${_28_Id}","v","v",["text",["s",""]]],["${_28_Id}","v","v",["c",["i",0]]]],"syncId":${syncId},"clientId":${clientId}}

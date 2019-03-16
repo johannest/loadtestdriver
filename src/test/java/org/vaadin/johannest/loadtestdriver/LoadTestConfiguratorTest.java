@@ -97,7 +97,7 @@ public class LoadTestConfiguratorTest {
         configurator.setResourcesPath("src/test/resources");
         configurator.setClassName("MyUI_ScalabilityTest");
 
-        String resultFile = configurator.configureTestFile(false);
+        String resultFile = configurator.configureTestFile(true);
         System.out.println("-----------------------");
         System.out.println(resultFile);
     }

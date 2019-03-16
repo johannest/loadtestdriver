@@ -75,7 +75,7 @@ public class LoadTestRunner {
         propsBuilder.resourcesDirectory(recorder.getTempFilePath());
         propsBuilder.resultsDirectory(recorder.getResourcesPath() + "/results");
         propsBuilder.simulationsDirectory(recorder.getTempFilePath());
-        propsBuilder.resourcesDirectory(recorder.getBodiesFolderPath());
+        propsBuilder.resourcesDirectory(recorder.getResourcesFolderPath());
         propsBuilder.resourcesDirectory(recorder.getDataFolderPath());
         final Map<String, Object> propsMap = propsBuilder.build();
         propsMap.put("gatling.core.mute", true);

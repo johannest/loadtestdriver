@@ -178,7 +178,7 @@ public class LoadTestConfigurator {
 
             if (newLine.contains("atOnceUsers")) {
                 newLine = newLine.replaceFirst("inject\\(atOnceUsers\\(1\\)\\)",
-                        "inject(rampUsers(" + loadTestParameters.getConcurrentUsers() + ") over (" +
+                        "inject(rampUsers(" + loadTestParameters.getConcurrentUsers() + ") during (" +
                                 loadTestParameters.getRampUpTime() + " seconds))");
             }
 
@@ -203,9 +203,9 @@ public class LoadTestConfigurator {
         if (newLine.contains(LoadTestDriver.INJECT_KEYWORD)) {
             try {
                 String[] lineParts = newLine.substring(newLine.indexOf(LoadTestDriver.INJECT_KEYWORD)).split("\\.");
-                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-3]);
-                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-2]);
-                String regex = lineParts[lineParts.length-1];
+                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-4]);
+                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-3]);
+                String regex = lineParts[lineParts.length-2];
 
                 lines.remove(lines.size()-1);
 
@@ -379,10 +379,15 @@ public class LoadTestConfigurator {
     }
 
     private void handleInitializationRequest(BufferedReader br, List<String> lines, String newLine) throws IOException {
+        List<String> linesBuffer = new ArrayList<>();
         while (newLine != null && !newLine.matches(".*body\\(RawFileBody.*")) {
             newLine = br.readLine();
+            linesBuffer.add(newLine);
             if (newLine.contains("formParam")) {
                 // no need to manually convert initialization request
+                for (String line : linesBuffer) {
+                    lines.add(line);
+                }
                 lines.add("\t\t\t.check(xsrfTokenExtract)");
                 return;
             }
@@ -423,7 +428,7 @@ public class LoadTestConfigurator {
             requestBody = doRequestBodyTreatments(requestBody);
 
             if (saveRequest) {
-                saveRequestFile(resourcesPath + "/bodies/" + fileName, requestBody);
+                saveRequestFile(resourcesPath + "/resources/" + fileName, requestBody);
             } else {
                 Logger.getLogger(LoadTestConfigurator.class.getName())
                         .info("--- New RequestBody " + "---\n" + requestBody + "\n-----------------------");
@@ -477,7 +482,7 @@ public class LoadTestConfigurator {
     }
 
     private String readRequestResponseFileContent(final String fileName) {
-        return readFileContent(resourcesPath + "/bodies/" + fileName);
+        return readFileContent(resourcesPath + "/resources/" + fileName);
     }
 
     private String readFileContent(String filename) {
