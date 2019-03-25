@@ -137,7 +137,7 @@ public class LoadTestDriver extends ChromeDriver {
         this.testName = testName;
     }
 
-    public void withStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
+    public void setStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
         this.staticResourcesIngnoringEnabled = staticResourcesIngnoringEnabled;
     }
 

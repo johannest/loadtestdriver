@@ -189,7 +189,7 @@ public class LoadTestDriverBuilder {
         driver.setResourcesPath(resourcesPath);
         driver.setTestName(testName);
         driver.setTestConfiguringEnabled(testRefactoringEnabled);
-        driver.withStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
+        driver.setStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
         return driver;
     }
 }

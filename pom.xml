@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.3.0</version>
+	<version>0.3.1</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
@@ -13,8 +13,8 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 
-		<gatling.version>2.3.1</gatling.version>
-		<scala.version>2.11.8</scala.version>
+		<gatling.version>3.0.2</gatling.version>
+		<scala.version>3.4.4</scala.version>
 		<vaadin.version>10.0.6</vaadin.version>
 		<test-bench-version>6.0.1</test-bench-version>
 
@@ -81,42 +81,19 @@
 
 		<!-- Gatling dependencies -->
 		<dependency>
-			<groupId>io.netty</groupId>
-			<artifactId>netty-transport</artifactId>
-			<version>4.1.25.Final</version>
-		</dependency>
-		<dependency>
     		<groupId>io.gatling</groupId>
     		<artifactId>gatling-core</artifactId>
     		<version>${gatling.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-transport</artifactId>
-				</exclusion>
-			</exclusions>
   		</dependency>
   		<dependency>
     		<groupId>io.gatling</groupId>
     		<artifactId>gatling-http</artifactId>
     		<version>${gatling.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-transport</artifactId>
-				</exclusion>
-			</exclusions>
   		</dependency>
   		<dependency>
     		<groupId>io.gatling</groupId>
     		<artifactId>gatling-recorder</artifactId>
     		<version>${gatling.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-transport</artifactId>
-				</exclusion>
-			</exclusions>
   		</dependency>
   		<dependency>
     		<groupId>io.gatling</groupId>
