@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.Logger;
 
+import io.gatling.commons.util.DefaultClock;
 import org.apache.commons.io.FileUtils;
 
 import io.gatling.recorder.config.RecorderConfiguration;
@@ -21,7 +22,7 @@ public class Recorder {
 
     private final RecorderController recorderController;
     private final String resourcesPath;
-    private final String bodiesFolderPath;
+    private final String resourcesFolderPath;
     private final String dataFolderPath;
     private final String[] staticPatterns = { ".*\\.js", ".*\\.cache.js", ".*\\.css", ".*\\.gif", ".*\\.jpeg",
             ".*\\.jpg", ".*\\.ico", ".*\\.woff", ".*\\.ttf", ".*\\.otf", ".*\\.png", ".*\\.css?(.*)", ".*\\.js?(.*)" };
@@ -46,18 +47,18 @@ public class Recorder {
     }
 
     public Recorder(int proxyPort, String proxyHost, String tempFilePath, String resourcesPath, String testName,
-            boolean ignoreStatics, boolean headlessEnabled) {
+                    boolean ignoreStatics, boolean headlessEnabled) {
         this.headlessEnabled = headlessEnabled;
         Logger.getLogger(Recorder.class.getName()).info(proxyHost + ":" + proxyPort);
         getTempFilePath(tempFilePath);
 
         this.resourcesPath = resourcesPath;
-        bodiesFolderPath = resourcesPath + "/bodies";
+        resourcesFolderPath = resourcesPath + "/resources";
         dataFolderPath = resourcesPath + "/data";
 
         final Option<Path> path = createPathToRecorderConf();
         final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$.<String, Object> empty();
-        map.put("recorder.core.bodiesFolder", bodiesFolderPath);
+        map.put("recorder.core.resourcesFolder", resourcesFolderPath);
         map.put("recorder.core.headless", headlessEnabled);
 
         final RecorderPropertiesBuilder props = buildRecorderProperties(proxyPort, tempFilePath, testName,
@@ -65,7 +66,7 @@ public class Recorder {
 
         RecorderConfiguration.initialSetup(map, path);
         RecorderConfiguration.reload(props.build());
-        recorderController = new RecorderController();
+        recorderController = new RecorderController(new DefaultClock());
     }
 
     private void getTempFilePath(String tempFilePath) {
@@ -85,7 +86,7 @@ public class Recorder {
     }
 
     private RecorderPropertiesBuilder buildRecorderProperties(int proxyPort, String tempFilePath, String testName,
-            boolean ignoreStatics) {
+                                                              boolean ignoreStatics) {
         final RecorderPropertiesBuilder props = new RecorderPropertiesBuilder();
         props.mode(RecorderMode.apply("Proxy"));
         props.localPort(proxyPort);
@@ -93,7 +94,8 @@ public class Recorder {
             props.simulationClassName(className = randomName());
         }
         props.simulationClassName(className = testName);
-        props.simulationOutputFolder(tempFilePath);
+        props.simulationsFolder(tempFilePath);
+        props.resourcesFolder(tempFilePath+"/resources");
         props.followRedirect(true);
         props.removeCacheHeaders(true);
         props.inferHtmlResources(false);
@@ -146,8 +148,8 @@ public class Recorder {
         return resourcesPath;
     }
 
-    String getBodiesFolderPath() {
-        return bodiesFolderPath;
+    String getResourcesFolderPath() {
+        return resourcesFolderPath;
     }
 
     String getDataFolderPath() {

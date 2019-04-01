@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 34, "clientId": 34, "changes" : [], "state":{"103":{"text":"$98.77"},"73":{"text":"$255.09"},"98":{"selectedItemCaption":"Vanilla Cracker","selectedItemKey":"9"}}, "types":{"103":"2","73":"2","98":"41"}, "hierarchy":{"98":["99"]}, "rpc" : [], "meta" : {}, "resources" : {}, "timings":[76, 1]}]

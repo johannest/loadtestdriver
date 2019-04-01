@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 26, "clientId": 26, "changes" : [], "state":{"98":{"currentFilterText":"Van"}}, "types":{"98":"41","99":"13"}, "hierarchy":{"98":["99"],"99":[]}, "rpc" : [["99","com.vaadin.shared.data.DataCommunicatorClientRpc","reset",[3]],["99","com.vaadin.shared.data.DataCommunicatorClientRpc","reset",[3]]], "meta" : {}, "resources" : {}, "timings":[67, 1]}]

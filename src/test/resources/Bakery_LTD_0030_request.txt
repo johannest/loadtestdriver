@@ -1,0 +1,1 @@
+{"csrfToken":"655f61f0-fbf3-4595-aab8-050f8120954c","rpc":[["98","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanill"]],["98","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla"]],["98","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla "]]],"syncId":27,"clientId":27}

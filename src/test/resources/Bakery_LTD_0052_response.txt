@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 50, "clientId": 50, "changes" : [], "state":{}, "types":{"121":"13"}, "hierarchy":{"121":[]}, "rpc" : [["121","com.vaadin.shared.data.DataCommunicatorClientRpc","setData",[0,[{"k":"6","n":"Strawberry Cheese Cake"}]]]], "meta" : {}, "resources" : {}, "timings":[97, 0]}]

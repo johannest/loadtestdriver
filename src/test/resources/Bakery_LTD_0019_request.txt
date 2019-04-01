@@ -1,0 +1,1 @@
+{"csrfToken":"655f61f0-fbf3-4595-aab8-050f8120954c","rpc":[["88","com.vaadin.shared.data.DataRequestRpc","requestRows",[0,1,0,0]],["87","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese "]],["87","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese C"]]],"syncId":16,"clientId":16}

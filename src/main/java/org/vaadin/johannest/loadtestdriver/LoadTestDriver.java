@@ -1,14 +1,17 @@
 package org.vaadin.johannest.loadtestdriver;
 
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.phantomjs.PhantomJSDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Logger;
 
-import org.openqa.selenium.phantomjs.PhantomJSDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
-
 public class LoadTestDriver extends PhantomJSDriver {
 
+    public static final String DEFAULT_PING_URL = "https://www.google.com/search?q=";
+    public static final String INJECT_KEYWORD = "INJECT_TRYMAX_LOOP";
     private final LoadTestConfigurator loadTestConfigurator;
     private final boolean headlessEnabled;
 
@@ -137,7 +140,7 @@ public class LoadTestDriver extends PhantomJSDriver {
         this.testName = testName;
     }
 
-    public void withStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
+    public void setStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
         this.staticResourcesIngnoringEnabled = staticResourcesIngnoringEnabled;
     }
 
@@ -159,6 +162,34 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     public boolean isStaticResourcesIngnoringEnabled() {
         return staticResourcesIngnoringEnabled;
+    }
+
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish
+     *
+     * @param maxTries how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries pause between polls
+     * @param responseRegex regular expression for successful response
+     */
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex);
+    }
+
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish
+     *
+     * @param pingUrl url used to inject the marker
+     * @param maxTries how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries pause between polls
+     * @param responseRegex regular expression for successful response
+     */
+    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex) {
+        ((JavascriptExecutor)this).executeScript("window.open('"+pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+".','_blank');");
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

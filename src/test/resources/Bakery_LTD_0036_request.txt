@@ -1,0 +1,1 @@
+{"csrfToken":"655f61f0-fbf3-4595-aab8-050f8120954c","rpc":[["98","com.vaadin.shared.data.selection.SelectionServerRpc","select",["9"]]],"syncId":33,"clientId":33}

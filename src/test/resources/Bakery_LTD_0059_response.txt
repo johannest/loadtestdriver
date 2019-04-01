@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+ <head>
+  <script type="text/javascript" src="./VAADIN/frontend/es5/webcomponentsjs/webcomponents-lite.js"></script>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=11">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+  <title>###Bakery###</title>
+  <style type="text/css">html, body {height:100%;margin:0;}</style>
+  <link rel="shortcut icon" type="image/vnd.microsoft.icon" href="./VAADIN/themes/apptheme/favicon.ico">
+  <link rel="icon" type="image/vnd.microsoft.icon" href="./VAADIN/themes/apptheme/favicon.ico">
+  <link rel="icon" sizes="192x192" href="./VAADIN/themes/apptheme/icon-192.png">
+  <link rel="icon" sizes="96x96" href="./VAADIN/themes/apptheme/icon-96.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="./VAADIN/themes/apptheme/icon-192.png">
+  <link rel="apple-touch-icon" sizes="96x96" href="./VAADIN/themes/apptheme/icon-96.png">
+ </head>
+ <body scroll="auto" class="v-generated-body">
+  <div id="ROOT-2521314" class="v-app apptheme appui">
+   <div class="v-app-loading"></div>
+   <noscript>
+    You have to enable javascript in your browser to use an application built with Vaadin.
+   </noscript>
+  </div>
+  <script type="text/javascript" src="./VAADIN/vaadinBootstrap.js?v=8.4.1"></script>
+  <script type="text/javascript">//<![CDATA[
+if (!window.vaadin) alert("Failed to load the bootstrap javascript: ./VAADIN/vaadinBootstrap.js?v=8.4.1");
+if (typeof window.__gwtStatsEvent != 'function') {
+vaadin.gwtStatsEvents = [];
+window.__gwtStatsEvent = function(event) {vaadin.gwtStatsEvents.push(event); return true;};
+}
+vaadin.initApplication("ROOT-2521314",{
+    "theme": "apptheme",
+    "versionInfo": {
+        "vaadinVersion": "8.4.1",
+        "atmosphereVersion": "2.4.24.vaadin1"
+    },
+    "widgetset": "wsa4b9afd2165112d512d91e932dbce918",
+    "widgetsetReady": true,
+    "comErrMsg": {
+        "caption": "Communication problem",
+        "message": "Take note of any unsaved data, and <u>click here</u> or press ESC to continue.",
+        "url": null
+    },
+    "authErrMsg": {
+        "caption": "Authentication problem",
+        "message": "Take note of any unsaved data, and <u>click here</u> or press ESC to continue.",
+        "url": null
+    },
+    "sessExpMsg": {
+        "caption": "Session Expired",
+        "message": "Take note of any unsaved data, and <u>click here</u> or press ESC key to continue.",
+        "url": null
+    },
+    "contextRootUrl": "./",
+    "vaadinDir": "./VAADIN/",
+    "frontendUrl": "vaadin://frontend/es5/",
+    "debug": true,
+    "standalone": true,
+    "heartbeatInterval": 300,
+    "serviceUrl": "/vaadinServlet"
+});
+//]]></script>
+ </body>
+</html>
