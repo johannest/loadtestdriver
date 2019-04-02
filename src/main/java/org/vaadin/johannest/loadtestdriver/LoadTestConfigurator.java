@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import elemental.json.Json;
@@ -29,13 +30,12 @@ import elemental.json.JsonObject;
 
 public class LoadTestConfigurator {
 
-    public static final String V7_GRID_DATACOMM = "com.vaadin.shared.data.DataProviderRpc";
     public static final String V8_GRID_DATACOMM = "com.vaadin.shared.data.DataCommunicatorClientRpc";
 
     private static final String[] requestTypes = { "\"click\"", "\"disableOnClick\"", "\"setText\"", "[\"text\"",
             "\"select\"", "[\"selected\"", "\"requestRows\"", "[\"collapse\"", "[\"requestChildTree\"",
             "[\"scrollTop\"", "[\"scrollLeft\"", "[\"positionx\"", "[\"positiony\"", "[\"requestChildTree\"",
-            "[\"filter\"", "[\"page\"", "\"setChecked\"" };
+            "[\"filter\"", "[\"page\"", "\"setChecked\"", "dropRows", "update", "setFilter", "resize" };
 
     private static final String[] matchingProperties = { "id", "caption", "inputPrompt", "placeholder", "styles",
             "resources", "primaryStyleName" };
@@ -105,6 +105,7 @@ public class LoadTestConfigurator {
             addRegexExtractChecks();
             addRegexExtractDefinitions();
             addAdditionalImports();
+            removePossibleBodyByteCheck();
 
             if (saveResults) {
                 final FileWriter fw = new FileWriter(file);
@@ -132,6 +133,10 @@ public class LoadTestConfigurator {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private void removePossibleBodyByteCheck() {
+        lines = lines.stream().filter(line -> !line.contains("check(bodyBytes.is(RawFileBody")).collect(Collectors.toList());
     }
 
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
@@ -371,41 +376,46 @@ public class LoadTestConfigurator {
 
     private void handleInitializationRequest(BufferedReader br, List<String> lines, String newLine) throws IOException {
         List<String> linesBuffer = new ArrayList<>();
-        while (newLine != null && !newLine.matches(".*body\\(RawFileBody.*")) {
+        boolean convertInitManually = true;
+        while (newLine != null && !newLine.matches(".*body.{0,10}\\(RawFileBody.*")) {
             newLine = br.readLine();
             linesBuffer.add(newLine);
             if (newLine.contains("formParam")) {
                 // no need to manually convert initialization request
-                for (String line : linesBuffer) {
-                    lines.add(line);
-                }
-                lines.add("\t\t\t.check(xsrfTokenExtract)");
-                return;
+                convertInitManually = false;
             }
         }
-
         final String fileName = getRequestFileName(newLine);
 
         if (fileName != null) {
-            uiInitRequestFileName = fileName;
-            Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
             String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
             readConnectorMap(responseBody, fileName);
 
-            final String requesBody = readRequestResponseFileContent(fileName);
-            final String[] requestParameters = requesBody.split("&");
-            for (final String requestParam : requestParameters) {
-                final String[] keyValuePair = requestParam.split("=");
-                if (keyValuePair[0].equals("v-loc")) {
-                    keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
-                    keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
+            if (!convertInitManually) {
+                lines.addAll(linesBuffer);
+                lines.add("\t\t\t.check(xsrfTokenExtract))");
+            }
+            else {
+                uiInitRequestFileName = fileName;
+                Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
+                responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
+                readConnectorMap(responseBody, fileName);
+
+                final String requesBody = readRequestResponseFileContent(fileName);
+                final String[] requestParameters = requesBody.split("&");
+                for (final String requestParam : requestParameters) {
+                    final String[] keyValuePair = requestParam.split("=");
+                    if (keyValuePair[0].equals("v-loc")) {
+                        keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
+                        keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
+                    }
+                    final String formattedParameterLine = String
+                            .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
+                    lines.add(formattedParameterLine);
                 }
-                final String formattedParameterLine = String
-                        .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
-                lines.add(formattedParameterLine);
+                lines.add("\t\t\t.check(xsrfTokenExtract)");
             }
         }
-        lines.add("\t\t\t.check(xsrfTokenExtract)");
     }
 
     private String replaceWithELFileBody(String newLine, boolean saveRequest) throws IOException {
@@ -601,7 +611,7 @@ public class LoadTestConfigurator {
                             if (subArray.length() > 2) {
                                 final String connectorId = subArray.getString(0);
                                 final String className = subArray.getString(1);
-                                if (className.equals(V7_GRID_DATACOMM) || className.equals(V8_GRID_DATACOMM)) {
+                                if (className.equals(V8_GRID_DATACOMM)) {
                                     if (!connectorIdToMatchingPropertyKeyMap.containsKey(connectorId)) {
                                         connectorIdToMatchingPropertyKeyMap.put(connectorId, className);
                                         connectorIdToMatchingPropertyValueMap.put(connectorId, className);
