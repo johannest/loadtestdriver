@@ -450,9 +450,11 @@ public class LoadTestConfigurator {
                 String connectorId = String.valueOf(in.nextInt());
                 if (connectorIdToMatchingPropertyKeyMap.containsKey(connectorId) ||
                         (connectorIdToTypeIdMap.get(connectorId) != null && typeIdToCountMap.get(connectorIdToTypeIdMap.get(connectorId)) == 1)) {
-                    String idName = "_" + connectorId + "_Id";
-                    requestBody = requestBody.replace("\"" + connectorId + "\"", "\"${" + idName + "}\"");
-                    requiredConnectorIds.add(connectorId);
+                    if (!connectorId.equals("0")) {
+                        String idName = "_" + connectorId + "_Id";
+                        requestBody = requestBody.replace("\"" + connectorId + "\"", "\"${" + idName + "}\"");
+                        requiredConnectorIds.add(connectorId);
+                    }
                 } else {
                     Logger.getLogger(LoadTestConfigurator.class.getName())
                             .info(" ####### No mapping found for connector id " + connectorId + " at request: " + requestBody);
