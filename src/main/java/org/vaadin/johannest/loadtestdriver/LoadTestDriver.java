@@ -1,17 +1,19 @@
 package org.vaadin.johannest.loadtestdriver;
 
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.phantomjs.PhantomJSDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
-public class LoadTestDriver extends PhantomJSDriver {
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+
+public class LoadTestDriver extends ChromeDriver {
 
     public static final String DEFAULT_PING_URL = "https://www.google.com/search?q=";
     public static final String INJECT_KEYWORD = "INJECT_TRYMAX_LOOP";
+
     private final LoadTestConfigurator loadTestConfigurator;
     private final boolean headlessEnabled;
 
@@ -20,15 +22,15 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private int proxyPort;
     private String proxyHost;
-    private String tempFilePath;
+    private String simulationFilePath;
     private String resourcesPath;
     private String testName;
 
     private boolean testConfiguringEnabled;
     private boolean staticResourcesIngnoringEnabled;
 
-    public LoadTestDriver(DesiredCapabilities capabilities, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
-        super(capabilities);
+    public LoadTestDriver(ChromeOptions options, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
+        super(options);
         loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
         this.headlessEnabled = headlessEnabled;
     }
@@ -62,12 +64,12 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private void startRecording() {
         Logger.getLogger(LoadTestDriver.class.getName()).info("## startRecording");
-        recorder = new Recorder(getProxyPort(), getProxyHost(), getTempFilePath(), getResourcesPath(), getTestName(),
+        recorder = new Recorder(getProxyPort(), getProxyHost(), getSimulationFilePath(), getResourcesPath(), getTestName(),
                 staticResourcesIngnoringEnabled, headlessEnabled);
 
         loadTestConfigurator.setClassName(recorder.getClassName());
         loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
-        loadTestConfigurator.setTempFilePath(recorder.getTempFilePath());
+        loadTestConfigurator.setTempFilePath(recorder.getSimulationFilePath());
 
         recording = true;
         recorder.start();
@@ -77,6 +79,7 @@ public class LoadTestDriver extends PhantomJSDriver {
     public void close() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.close();
             if (testConfiguringEnabled) {
                 loadTestConfigurator.configureTestFile();
@@ -84,10 +87,19 @@ public class LoadTestDriver extends PhantomJSDriver {
         }
     }
 
+    private void waitForAWhile() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void quit() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.quit();
             if (testConfiguringEnabled) {
                 loadTestConfigurator.configureTestFile();
@@ -116,12 +128,12 @@ public class LoadTestDriver extends PhantomJSDriver {
         this.proxyHost = proxyHost;
     }
 
-    public String getTempFilePath() {
-        return tempFilePath;
+    public String getSimulationFilePath() {
+        return simulationFilePath;
     }
 
-    public void setTempFilePath(String tempFilePath) {
-        this.tempFilePath = tempFilePath;
+    public void setSimulationFilePath(String simulationFilePath) {
+        this.simulationFilePath = simulationFilePath;
     }
 
     private String getResourcesPath() {
@@ -184,12 +196,15 @@ public class LoadTestDriver extends PhantomJSDriver {
      * @param responseRegex regular expression for successful response
      */
     public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex) {
-        ((JavascriptExecutor)this).executeScript("window.open('"+pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+".','_blank');");
+        ((JavascriptExecutor)this).executeScript("window.open()");
+        ArrayList<String> tabs = new ArrayList<>(getWindowHandles());
+        switchTo().window(tabs.get(1));
+        get(pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+".");
         try {
-            Thread.sleep(2000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        switchTo().window(tabs.get(0));
     }
-
 }

@@ -1,1 +1,1 @@
-{"csrfToken":"655f61f0-fbf3-4595-aab8-050f8120954c","rpc":[["87","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Ca"]],["87","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Cak"]]],"syncId":17,"clientId":17}
+{"csrfToken":"${seckey}","rpc":[["${_87_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Ca"]],["${_87_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Cak"]]],"syncId":${syncId},"clientId":${clientId}}

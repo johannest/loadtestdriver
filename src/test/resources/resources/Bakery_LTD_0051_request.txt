@@ -1,1 +1,1 @@
-{"csrfToken":"655f61f0-fbf3-4595-aab8-050f8120954c","rpc":[["120","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Cake"]]],"syncId":48,"clientId":48}
+{"csrfToken":"${seckey}","rpc":[["${_120_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawberry Cheese Cake"]]],"syncId":${syncId},"clientId":${clientId}}

@@ -46,11 +46,11 @@ public class LoadTestRunner {
             cmd.append(" io.gatling.compiler.ZincCompiler ");
             cmd.append("-ccp " + classpath);
             cmd.append(" -sf ");
-            cmd.append(recorder.getTempFilePath());
+            cmd.append(recorder.getSimulationFilePath());
             cmd.append(" -bf ");
             cmd.append(recorder.getResourcesPath());
             // cmd.append(" -ro ");
-            // cmd.append(recorder.getTempFilePath()+"/results");
+            // cmd.append(recorder.getSimulationFilePath()+"/results");
 
             Logger.getLogger(Recorder.class.getName()).info("Running ZincCompiler with comman: " + cmd.toString());
             final Process pro = Runtime.getRuntime().exec(cmd.toString());
@@ -71,16 +71,15 @@ public class LoadTestRunner {
 
     private void runLoadTest() {
         final GatlingPropertiesBuilder propsBuilder = new GatlingPropertiesBuilder();
-        propsBuilder.binariesDirectory(recorder.getTempFilePath() + "/test-classes");
-        propsBuilder.resourcesDirectory(recorder.getTempFilePath());
+        propsBuilder.binariesDirectory(recorder.getSimulationFilePath() + "/test-classes");
+        propsBuilder.resourcesDirectory(recorder.getSimulationFilePath());
         propsBuilder.resultsDirectory(recorder.getResourcesPath() + "/results");
-        propsBuilder.simulationsDirectory(recorder.getTempFilePath());
-        propsBuilder.resourcesDirectory(recorder.getResourcesFolderPath());
-        propsBuilder.resourcesDirectory(recorder.getDataFolderPath());
+        propsBuilder.simulationsDirectory(recorder.getSimulationFilePath());
+        propsBuilder.resourcesDirectory(recorder.getResourcesPath());
         final Map<String, Object> propsMap = propsBuilder.build();
         propsMap.put("gatling.core.mute", true);
         // propsMap.put("gatling.core.directory.reportsOnly",
-        // recorder.getTempFilePath());
+        // recorder.getSimulationFilePath());
         Gatling.fromMap(propsMap);
     }
 
