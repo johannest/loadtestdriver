@@ -11,7 +11,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 
 public class LoadTestDriver extends ChromeDriver {
 
-    public static final String DEFAULT_PING_URL = "https://www.google.com/search?q=";
+    public static final String DEFAULT_PING_URL = "http://www.google.com/search?q=";
     public static final String INJECT_KEYWORD = "INJECT_TRYMAX_LOOP";
 
     private final LoadTestConfigurator loadTestConfigurator;
@@ -179,32 +179,62 @@ public class LoadTestDriver extends ChromeDriver {
     /**
      * Add marker for injecting Gatling tryMax loop to poll background thread to finish
      *
-     * @param maxTries how many time server-side is polled before marking the request failed
+     * @param maxTries          how many time server-side is polled before marking the request failed
      * @param pauseBetweenTries pause between polls
-     * @param responseRegex regular expression for successful response
+     * @param responseRegex     regular expression for successful response
      */
     public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex) {
-        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex);
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, -1);
+    }
+
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish, wait until waitAndforceSyncAfter_ms and then force resync
+     *
+     * @param maxTries                 how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries        pause between polls
+     * @param responseRegex            regular expression for successful response
+     * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
+     */
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, int waitAndforceSyncAfter_ms) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, waitAndforceSyncAfter_ms);
     }
 
     /**
      * Add marker for injecting Gatling tryMax loop to poll background thread to finish
      *
-     * @param pingUrl url used to inject the marker
-     * @param maxTries how many time server-side is polled before marking the request failed
-     * @param pauseBetweenTries pause between polls
-     * @param responseRegex regular expression for successful response
+     * @param pingUrl                  url used to inject the marker
+     * @param maxTries                 how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries        pause between polls
+     * @param responseRegex            regular expression for successful response
+     * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
      */
-    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex) {
-        ((JavascriptExecutor)this).executeScript("window.open()");
-        ArrayList<String> tabs = new ArrayList<>(getWindowHandles());
-        switchTo().window(tabs.get(1));
-        get(pingUrl+ INJECT_KEYWORD + "." +maxTries+"."+pauseBetweenTries+"."+responseRegex+".");
+    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex, int waitAndforceSyncAfter_ms) {
+        ((JavascriptExecutor) this).executeScript("window.open()");
         try {
-            Thread.sleep(1000);
+            Thread.sleep(250);
+            ArrayList<String> tabs = new ArrayList<>(getWindowHandles());
+            Thread.sleep(250);
+            switchTo().window(tabs.get(1));
+            Thread.sleep(250);
+            super.get(pingUrl + INJECT_KEYWORD + "." + maxTries + "." + pauseBetweenTries + "." + responseRegex + ".");
+            Thread.sleep(250);
+            this.execute("close");
+            switchTo().window(tabs.get(0));
+            Thread.sleep(250);
+
+            if (waitAndforceSyncAfter_ms > 0) {
+                Thread.sleep(waitAndforceSyncAfter_ms);
+                forceSync();
+            }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        switchTo().window(tabs.get(0));
+    }
+
+    /**
+     * Force sync "browser" and server side
+     */
+    public void forceSync() {
+        ((JavascriptExecutor) this).executeScript("window.vaadin.forceSync()");
     }
 }

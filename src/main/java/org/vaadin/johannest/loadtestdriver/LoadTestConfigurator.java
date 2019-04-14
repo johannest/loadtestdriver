@@ -8,16 +8,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,6 +57,7 @@ public class LoadTestConfigurator {
     private List<String> connectorIdExtractors;
 
     private Integer uidlHeadersNo;
+    private String uidlPath;
 
     public LoadTestConfigurator(LoadTestParameters loadTestParameters) {
         this.loadTestParameters = loadTestParameters;
@@ -106,6 +98,8 @@ public class LoadTestConfigurator {
             addRegexExtractDefinitions();
             addAdditionalImports();
             removePossibleBodyByteCheck();
+            replacehardCodedUiIdAndPushIds();
+            postTryMaxHandling();
 
             if (saveResults) {
                 final FileWriter fw = new FileWriter(file);
@@ -176,6 +170,8 @@ public class LoadTestConfigurator {
             }
 
             extractUidlHeaderNumber(newLine, previousLine);
+            extractUidlPath(newLine);
+
 
             newLine = handleTryMax(br, newLine);
 
@@ -204,6 +200,16 @@ public class LoadTestConfigurator {
         }
     }
 
+    private void extractUidlPath(String newLine) {
+        if (uidlPath==null && newLine.contains("UIDL/?v-uiId=")) {
+            Pattern p = Pattern.compile("^.*post\\(\"(.*)UIDL/.*$");
+            Matcher m = p.matcher(newLine);
+            if (m.find()) {
+                uidlPath = m.group(1);
+            }
+        }
+    }
+
     private String handleTryMax(BufferedReader br, String newLine) throws IOException {
         if (newLine.contains(LoadTestDriver.INJECT_KEYWORD)) {
             try {
@@ -220,9 +226,9 @@ public class LoadTestConfigurator {
                 newLine = br.readLine();
 
                 lines.add("\t\t.tryMax("+maxTries+") {");
-                lines.add("\t\t\tpause("+pauseBetween+")");
+                lines.add("\t\t\tpause("+pauseBetween+" milliseconds)");
                 lines.add("\t\t\t\t.exec(http(\"poll\")");
-                lines.add("\t\t\t\t\t.post(\"/UIDL/?v-uiId=0\")");
+                lines.add("\t\t\t\t\t.post(\""+uidlPath+"UIDL/?v-uiId=0\")");
                 lines.add("\t\t\t\t\t.headers(headers_"+uidlHeadersNo+")");
                 lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId}}\"\"\")).asJson");
                 lines.add("\t\t\t\t\t.check(regex(\"\"\""+regex+"\"\"\"))");
@@ -290,6 +296,75 @@ public class LoadTestConfigurator {
                 lines.add(i - 1, "\n");
                 break;
             }
+        }
+    }
+
+    private void replacehardCodedUiIdAndPushIds() {
+        for (int i = 0; i < lines.size(); i++) {
+            final String aline = lines.get(i);
+            if (aline.contains("/?v-uiId=")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("/\\?v\\-uiId=\\d{0,2}", Matcher.quoteReplacement("/?v-uiId=${uiId}"));
+                lines.add(i, newLine);
+            }
+            if (aline.contains("v-pushId=")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("v\\-pushId=[a-z0-9\\-]{1,50}&", Matcher.quoteReplacement("v-pushId=${pushId}&"));
+                lines.add(i, newLine);
+            }
+        }
+    }
+
+    private void postTryMaxHandling() {
+        boolean tryMaxFound = false;
+        boolean tryMaxBody = false;
+        boolean nextReqFound = false;
+        boolean tryMaxChecksFound = false;
+        boolean forcySyncAfterTryMax = false;
+
+        int tryMaxChecksIndex = -1;
+
+        List<String> extractList = null;
+        List<Integer> toBeRemovedIndexes = null;
+
+        for (int i = 0; i < lines.size(); i++) {
+            final String aline = lines.get(i);
+            if (aline.contains("tryMax")) {
+                tryMaxFound = true;
+            }
+            if (tryMaxFound && aline.contains("body(StringBody(\"\"\"{\"csrfToken")) {
+                tryMaxFound = false;
+                tryMaxBody = true;
+                tryMaxChecksIndex = i+1;
+            }
+            if (tryMaxBody && aline.contains("exec(http(\"request_")) {
+                tryMaxBody = false;
+                nextReqFound = true;
+            }
+            if (nextReqFound && aline.contains("check(syncIdExtract).check(clientIdExtract)")) {
+                nextReqFound = false;
+                tryMaxChecksFound = true;
+                extractList = new ArrayList<>();
+                toBeRemovedIndexes = new ArrayList<>();
+            }
+            if (tryMaxChecksFound && aline.matches(".*check\\(extract_[0-9]{1,5}_Id\\).*")) {
+                extractList.add("\t\t"+aline);
+                toBeRemovedIndexes.add(i);
+            }
+            if (tryMaxChecksFound && aline.contains("body(ElFileBody(")) {
+                tryMaxChecksFound = false;
+                String requestFileName = getRequestFileName(aline);
+                String requestContent = readRequestResponseFileContent(requestFileName);
+                forcySyncAfterTryMax = requestContent.contains("\"resynchronize\":true");
+            }
+        }
+
+        if (forcySyncAfterTryMax && extractList!=null) {
+            Collections.reverse(toBeRemovedIndexes);
+            for (Integer index: toBeRemovedIndexes) {
+                lines.remove(index.intValue());
+            }
+            lines.addAll(tryMaxChecksIndex, extractList);
         }
     }
 
@@ -380,7 +455,7 @@ public class LoadTestConfigurator {
         while (newLine != null && !newLine.matches(".*body.{0,10}\\(RawFileBody.*")) {
             newLine = br.readLine();
             linesBuffer.add(newLine);
-            if (newLine.contains("formParam")) {
+            if (newLine!=null && newLine.contains("formParam")) {
                 // no need to manually convert initialization request
                 convertInitManually = false;
             }
@@ -393,7 +468,6 @@ public class LoadTestConfigurator {
 
             if (!convertInitManually) {
                 lines.addAll(linesBuffer);
-                lines.add("\t\t\t.check(xsrfTokenExtract))");
             }
             else {
                 uiInitRequestFileName = fileName;
@@ -413,8 +487,10 @@ public class LoadTestConfigurator {
                             .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
                     lines.add(formattedParameterLine);
                 }
-                lines.add("\t\t\t.check(xsrfTokenExtract)");
             }
+            lines.add("\t\t\t.check(uIdExtract)");
+            lines.add("\t\t\t.check(pushIdExtract)");
+            lines.add("\t\t\t.check(xsrfTokenExtract))");
         }
     }
 
@@ -505,6 +581,8 @@ public class LoadTestConfigurator {
         lines.add(props.getProperty("sync_id_extract"));
         lines.add(props.getProperty("client_id_extract"));
         lines.add(props.getProperty("xsrf_token_extract"));
+        lines.add(props.getProperty("push_id_extract"));
+        lines.add(props.getProperty("uiid_id_extract"));
         lines.add("\n");
     }
 
