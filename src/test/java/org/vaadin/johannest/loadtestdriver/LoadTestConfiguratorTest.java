@@ -91,13 +91,13 @@ public class LoadTestConfiguratorTest {
 
     @Test
     public void configureTestFile_tryEndToEndConfiguring_verifyResults() {
-        LoadTestParameters parameters = new LoadTestParameters(10, 5, 2, 1, 5);
+        LoadTestParameters parameters = new LoadTestParameters(1, 1, 1, 1, 5);
         configurator = new LoadTestConfigurator(parameters);
-        configurator.setTempFilePath("src/test/resources");
-        configurator.setResourcesPath("src/test/resources");
-        configurator.setClassName("Bakery_LTD");
+        configurator.setTempFilePath("/dev/idea/loadtestdriver/src/test/resources");
+        configurator.setResourcesPath("/dev/idea/loadtestdriver/src/test/resources/resources");
+        configurator.setClassName("Barista_addOrder");
 
-        String resultFile = configurator.configureTestFile(true);
+        String resultFile = configurator.configureTestFile(false);
         System.out.println("-----------------------");
         System.out.println(resultFile);
     }
