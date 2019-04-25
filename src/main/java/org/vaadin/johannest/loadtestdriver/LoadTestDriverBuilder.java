@@ -1,9 +1,6 @@
 package org.vaadin.johannest.loadtestdriver;
 
-import java.util.ArrayList;
-
 import org.openqa.selenium.Proxy;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 public class LoadTestDriverBuilder {
@@ -168,24 +165,22 @@ public class LoadTestDriverBuilder {
         return this;
     }
 
-    public WebDriver build() {
-        final ArrayList<String> cliArgs = new ArrayList<>();
-        cliArgs.add("--proxy-server=" + ipaddress + ":" + proxyPort);
-
-        ChromeOptions options = new ChromeOptions();
+    public LoadTestDriver build() {
         Proxy proxy = new Proxy();
         proxy.setHttpProxy(ipaddress+":"+proxyPort);
+
+        ChromeOptions options = new ChromeOptions();
         options.setCapability("proxy", proxy);
-        options.addArguments(cliArgs);
+        options.addArguments("--disable-gpu");
         options.setHeadless(headlessEnabled);
 
         LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
 
-        final LoadTestDriver driver = new LoadTestDriver(options, loadTestParameters, headlessEnabled);
+        final LoadTestDriver driver = new LoadTestDriver(options, loadTestParameters, false);
         driver.setProxyHost(ipaddress);
         driver.setProxyPort(proxyPort);
-        driver.setTempFilePath(testPath);
+        driver.setSimulationFilePath(testPath);
         driver.setResourcesPath(resourcesPath);
         driver.setTestName(testName);
         driver.setTestConfiguringEnabled(testRefactoringEnabled);

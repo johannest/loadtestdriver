@@ -17,7 +17,7 @@ public class LoadTestDriver extends ChromeDriver {
 
     private int proxyPort;
     private String proxyHost;
-    private String tempFilePath;
+    private String simulationFilePath;
     private String resourcesPath;
     private String testName;
 
@@ -59,12 +59,12 @@ public class LoadTestDriver extends ChromeDriver {
 
     private void startRecording() {
         Logger.getLogger(LoadTestDriver.class.getName()).info("## startRecording");
-        recorder = new Recorder(getProxyPort(), getProxyHost(), getTempFilePath(), getResourcesPath(), getTestName(),
+        recorder = new Recorder(getProxyPort(), getProxyHost(), getSimulationFilePath(), getResourcesPath(), getTestName(),
                 staticResourcesIngnoringEnabled, headlessEnabled);
 
         loadTestConfigurator.setClassName(recorder.getClassName());
         loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
-        loadTestConfigurator.setTempFilePath(recorder.getTempFilePath());
+        loadTestConfigurator.setTempFilePath(recorder.getSimulationFilePath());
 
         recording = true;
         recorder.start();
@@ -74,6 +74,7 @@ public class LoadTestDriver extends ChromeDriver {
     public void close() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.close();
             if (testConfiguringEnabled) {
                 loadTestConfigurator.configureTestFile();
@@ -81,10 +82,19 @@ public class LoadTestDriver extends ChromeDriver {
         }
     }
 
+    private void waitForAWhile() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void quit() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.quit();
             if (testConfiguringEnabled) {
                 loadTestConfigurator.configureTestFile();
@@ -113,12 +123,12 @@ public class LoadTestDriver extends ChromeDriver {
         this.proxyHost = proxyHost;
     }
 
-    public String getTempFilePath() {
-        return tempFilePath;
+    public String getSimulationFilePath() {
+        return simulationFilePath;
     }
 
-    public void setTempFilePath(String tempFilePath) {
-        this.tempFilePath = tempFilePath;
+    public void setSimulationFilePath(String simulationFilePath) {
+        this.simulationFilePath = simulationFilePath;
     }
 
     private String getResourcesPath() {

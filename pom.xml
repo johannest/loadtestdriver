@@ -13,9 +13,9 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 
-		<gatling.version>3.0.2</gatling.version>
+		<gatling.version>3.0.3</gatling.version>
 		<scala.version>3.4.4</scala.version>
-		<vaadin.version>10.0.6</vaadin.version>
+		<vaadin.version>13.0.3</vaadin.version>
 		<test-bench-version>6.0.1</test-bench-version>
 
 		<!-- ZIP Manifest fields -->

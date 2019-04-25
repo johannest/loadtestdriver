@@ -1,0 +1,1 @@
+for(;;);[{"syncId":7,"clientId":7,"changes":[{"node":91,"type":"put","key":"text","feat":7,"value":"$781.60"},{"node":92,"type":"clear","feat":2},{"node":92,"type":"splice","feat":2,"index":0,"addNodes":[91]},{"node":83,"type":"remove","feat":3,"key":"disabled"},{"node":88,"type":"put","key":"totalPrice","feat":1,"value":"$781.60"}]}]

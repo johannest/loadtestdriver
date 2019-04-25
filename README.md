@@ -1,3 +1,6 @@
+[![Published on Vaadin  Directory](https://img.shields.io/badge/Vaadin%20Directory-published-00b4f0.svg)](https://vaadin.com/directory/component/loadtestdriver-add-on)
+[![Stars on Vaadin Directory](https://img.shields.io/vaadin-directory/star/loadtestdriver-add-on.svg)](https://vaadin.com/directory/component/loadtestdriver-add-on)
+
 LoadTestDriver
 ==============
 WebDriver for recording a Gatling load test, from an existing TestBench test.
@@ -26,10 +29,7 @@ http://chromedriver.chromium.org
 </dependency> 
 ```
 
-### Allow remote access of your application server 
-Verify that your application server works in your browser with your local IP address such as 192.168.12.3:8080. It is **not** enough that it works in `localhost:8080` or `127.0.0.1:8080`. For example, in case of WildFly you can use command line parameter `-b 0.0.0.0` (https://bgasparotto.com/enable-wildfly-remote-access/)
-
-### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method
+### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method. It recommended to store reference to the driver instance to make it easy to access the API of the driver.
 ```
 @Before
 public void setUp() throws Exception {

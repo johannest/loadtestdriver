@@ -1,0 +1,1 @@
+{"csrfToken":"a4286d4f-bf70-4770-892e-0308e0aee341","rpc":[{"type":"event","node":9,"event":"cardClick","data":{"key":"9"}},{"type":"publishedEventHandler","node":10,"templateEventMethodName":"setDetailsVisible","templateEventMethodArgs":["9"]}],"syncId":2,"clientId":2}
