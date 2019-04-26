@@ -1,0 +1,1 @@
+{"csrfToken":"2574f57a-4dae-41c8-b7b0-22cd2f9b96b0","rpc":[{"type":"mSync","node":37,"feature":1,"property":"opened","value":false}],"syncId":6,"clientId":6}

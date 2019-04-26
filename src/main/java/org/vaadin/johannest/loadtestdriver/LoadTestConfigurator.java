@@ -24,12 +24,14 @@ import com.google.common.base.Strings;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;
+import elemental.json.JsonString;
 
 public class LoadTestConfigurator {
 
     private final LoadTestParameters loadTestParameters;
 
     private final Map<String, String> nodeIdToCssIdMap = new HashMap<>();
+    private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
 
     private final Map<String, List<String>> nodeIdToRequestFileNames = new HashMap<>();
     private final Set<String> htmlRequestConnectors = new HashSet<>();
@@ -236,17 +238,21 @@ public class LoadTestConfigurator {
     }
 
     String createExtractorRegex(String requiredConnectorId) {
-        final String propertyKey = "@id";
-        final String propertyValue = nodeIdToCssIdMap.get(requiredConnectorId);
+        final String propertyValueCss = nodeIdToCssIdMap.get(requiredConnectorId);
+        final String propertyValueLabel = nodeIdToLabelMap.get(requiredConnectorId);
 
-        String regexExtractor = props.getProperty("connectorid_extractor_regex_template");
-        if (htmlRequestConnectors.contains(requiredConnectorId)) {
-            regexExtractor = props.getProperty("connectorid_extractor_regex_template_escaped");
+        if (propertyValueCss!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueCss));
+            return regexExtractor;
+        } else if (propertyValueLabel!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
         }
-        regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-        regexExtractor = regexExtractor.replace("_YYY_", propertyKey);
-        regexExtractor = regexExtractor.replace("_ZZZ_", escapePropertyValue(propertyValue));
-        return regexExtractor;
+        return null;
     }
 
     private String escapePropertyValue(String propertyValue) {
@@ -450,11 +456,22 @@ public class LoadTestConfigurator {
                     for (int i = 0; i < changesArray.length(); i++) {
                         JsonObject node = changesArray.get(i);
                         String nodeId = node.get("node").asString();
+
                         if (node.hasKey("key") && node.getString("key").equals("payload")) {
+                            // {"node":44,"type":"put","key":"payload","feat":0,"value":{"type":"@id","payload":"sendComment"}}
                             JsonObject payload = node.get("value");
                             if ("@id".equals(payload.getString("type"))) {
                                 String cssId = payload.getString("payload");
                                 nodeIdToCssIdMap.put(nodeId, cssId);
+                                nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+                                nodeIdToRequestFileNames.get(nodeId).add(filename);
+                            }
+                        }
+                        if (node.hasKey("key") && node.getString("key").equals("label")) {
+                            // {"node":39,"type":"put","key":"label","feat":1,"value":"Category"}
+                            JsonString labelValue = node.get("value");
+                            if (Strings.isNullOrEmpty(labelValue.getString())) {
+                                nodeIdToLabelMap.put(nodeId, labelValue.getString());
                                 nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
                                 nodeIdToRequestFileNames.get(nodeId).add(filename);
                             }
