@@ -40,9 +40,9 @@ public class LoadTestConfiguratorTest {
         configurator = new LoadTestConfigurator(parameters);
         configurator.setTempFilePath("src/test/resources");
         configurator.setResourcesPath("src/test/resources/resources");
-        configurator.setClassName("Bakery_AddOrder");
+        configurator.setClassName("LoginTest");
 
-        String resultFile = configurator.configureTestFile(false);
+        String resultFile = configurator.configureTestFile(true);
         System.out.println("-----------------------");
         System.out.println(resultFile);
     }

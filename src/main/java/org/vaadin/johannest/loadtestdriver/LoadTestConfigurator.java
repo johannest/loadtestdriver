@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import elemental.json.Json;
@@ -34,7 +35,6 @@ public class LoadTestConfigurator {
     private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
 
     private final Map<String, List<String>> nodeIdToRequestFileNames = new HashMap<>();
-    private final Set<String> htmlRequestConnectors = new HashSet<>();
     private final Set<String> requiredConnectorIds = new HashSet<>();
 
     private String uiInitRequestFileName;
@@ -86,6 +86,8 @@ public class LoadTestConfigurator {
             addRegexExtractChecks();
             addRegexExtractDefinitions();
             addAdditionalImports();
+            removePossibleBodyByteCheck();
+            replacehardCodedUiIdAndPushIds();
 
             if (saveResults) {
                 final FileWriter fw = new FileWriter(file);
@@ -115,11 +117,15 @@ public class LoadTestConfigurator {
         return null;
     }
 
+    private void removePossibleBodyByteCheck() {
+        lines = lines.stream().filter(line -> !line.contains("check(bodyBytes.is(RawFileBody")).collect(Collectors.toList());
+    }
+
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
         boolean syncIdsInitialized = false;
         String line;
         String newLine = null;
-        String previousLine = null;
+        String previousLine;
 
         while ((line = br.readLine()) != null) {
             previousLine = newLine;
@@ -143,11 +149,6 @@ public class LoadTestConfigurator {
             extractUidlHeaderNumber(newLine, previousLine);
 
             newLine = requestBodyTreatments(newLine, saveResults);
-
-            if (newLine.contains(".check(bodyBytes.is(")) {
-                lines.add("\t\t\t)");
-                continue;
-            }
 
             if (newLine.contains("atOnceUsers")) {
                 newLine = newLine.replaceFirst("inject\\(atOnceUsers\\(1\\)\\)",
@@ -176,13 +177,14 @@ public class LoadTestConfigurator {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
 
-            if (aline.contains(".post(") && aline.contains("/UIDL/?v-uiId=")) {
+            if (aline.contains(".post(") && aline.contains("?v-r=uidl&v-uiId=")) {
                lines.add(i + 2, "\t\t\t.check(syncIdExtract).check(clientIdExtract)");
             }
             for (Map.Entry<String, List<String>> entry : nodeIdToRequestFileNames.entrySet()) {
-                if (containsStringInAListOfStrings(aline, entry.getValue()) ||
+                List<String> fileNamesList = entry.getValue();
+                if (containsStringInAListOfStrings(aline, fileNamesList) ||
                         (uiInitRequestFileName != null && aline.contains("check(xsrfTokenExtract)") &&
-                                containsStringInAListOfStrings(uiInitRequestFileName, entry.getValue()))) {
+                                containsStringInAListOfStrings(uiInitRequestFileName, fileNamesList))) {
                     String requiredConnectorId = entry.getKey();
 
                     if (requiredConnectorIds.contains(requiredConnectorId)) {
@@ -209,6 +211,22 @@ public class LoadTestConfigurator {
                 }
                 lines.add(i - 1, "\n");
                 break;
+            }
+        }
+    }
+
+    private void replacehardCodedUiIdAndPushIds() {
+        for (int i = 0; i < lines.size(); i++) {
+            final String aline = lines.get(i);
+            if (aline.contains("?v-uiId=")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("v\\-uiId=\\d{0,2}", Matcher.quoteReplacement("v-uiId=${uiId}"));
+                lines.add(i, newLine);
+            }
+            if (aline.contains("v-pushId=")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("v\\-pushId=[a-z0-9\\-]{1,50}&", Matcher.quoteReplacement("v-pushId=${pushId}&"));
+                lines.add(i, newLine);
             }
         }
     }
@@ -284,71 +302,31 @@ public class LoadTestConfigurator {
         return false;
     }
 
-    private void handleInitializationRequest(BufferedReader br, List<String> lines, String newLine) throws IOException {
-//        List<String> linesBuffer = new ArrayList<>();
-//        boolean convertInitManually = true;
-//        while (newLine != null && !newLine.matches(".*body.{0,10}\\(RawFileBody.*")) {
-//            newLine = br.readLine();
-//            linesBuffer.add(newLine);
-//            if (newLine!=null && newLine.contains("formParam")) {
-//                // no need to manually convert initialization request
-//                convertInitManually = false;
-//            }
-//        }
-//        final String fileName = getRequestFileName(newLine);
-//
-//        if (fileName != null) {
-//            String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
-//            readConnectorMap(responseBody, fileName);
-//
-//            if (!convertInitManually) {
-//                lines.addAll(linesBuffer);
-//            }
-//            else {
-//                uiInitRequestFileName = fileName;
-//                Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
-//                responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
-//                readConnectorMap(responseBody, fileName);
-//
-//                final String requesBody = readRequestResponseFileContent(fileName);
-//                final String[] requestParameters = requesBody.split("&");
-//                for (final String requestParam : requestParameters) {
-//                    final String[] keyValuePair = requestParam.split("=");
-//                    if (keyValuePair[0].equals("v-loc")) {
-//                        keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
-//                        keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
-//                    }
-//                    final String formattedParameterLine = String
-//                            .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
-//                    lines.add(formattedParameterLine);
-//                }
-//            }
-//            lines.add("\t\t\t.check(uIdExtract)");
-//            lines.add("\t\t\t.check(pushIdExtract)");
-//            lines.add("\t\t\t.check(xsrfTokenExtract))");
-//        }
-    }
-
     private String replaceWithELFileBody(String newLine, boolean saveRequest) throws IOException {
-        final String fileName = getRequestFileName(newLine);
-        if (fileName != null) {
-            Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
+        final String requestFileName = getRequestFileName(newLine);
+        if (requestFileName != null) {
+            Logger.getLogger(LoadTestConfigurator.class.getName()).info(requestFileName);
 
-            String requestBody = readRequestResponseFileContent(fileName);
-            String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
+            String requestBody = readRequestResponseFileContent(requestFileName);
+            String responseBody = readRequestResponseFileContent(requestFileName.replaceFirst("request", "response"));
 
             if (requestBody.contains("\"Vaadin-Security-Key\":")) {
-                uiInitRequestFileName = fileName;
+                uiInitRequestFileName = requestFileName;
+                lines.add("\t\t\t.check(uIdExtract)");
+                lines.add("\t\t\t.check(pushIdExtract)");
+                lines.add("\t\t\t.check(xsrfTokenExtract)");
             }
 
-            readConnectorMap(responseBody, fileName);
-            requestBody = doRequestBodyTreatments(requestBody);
+            readConnectorMap(responseBody, requestFileName);
+            if (!requestFileName.contains("response")) {
+                requestBody = doRequestBodyTreatments(requestBody);
 
-            if (saveRequest) {
-                saveRequestFile(resourcesPath + (resourcesPath.charAt(resourcesPath.length()-1)=='/' ? "" : "/") + fileName, requestBody);
-            } else {
-                Logger.getLogger(LoadTestConfigurator.class.getName())
-                        .info("--- New RequestBody " + "---\n" + requestBody + "\n-----------------------");
+                if (saveRequest) {
+                    saveRequestFile(resourcesPath + (resourcesPath.charAt(resourcesPath.length() - 1) == '/' ? "" : "/") + requestFileName, requestBody);
+                } else {
+                    Logger.getLogger(LoadTestConfigurator.class.getName())
+                            .info("--- New RequestBody " + "---\n" + requestBody + "\n-----------------------");
+                }
             }
             newLine = newLine.replaceFirst("RawFileBody", "ElFileBody");
         }
@@ -363,10 +341,11 @@ public class LoadTestConfigurator {
         while (matcher.find()) {
             String connectorId = matcher.group(1);
             int index = matcher.start();
-            if (nodeIdToCssIdMap.get(connectorId)!=null && nodeIdToRequestFileNames.get(connectorId)!=null) {
+            if ((nodeIdToCssIdMap.get(connectorId)!=null || nodeIdToLabelMap.get(connectorId)!=null) && nodeIdToRequestFileNames.get(connectorId)!=null) {
                 String idName = "_" + connectorId + "_Id";
                 requestBody = requestBody.substring(0, index+7)+"${" + idName + "}"+requestBody.substring(index + connectorId.length()+7);
                 matcher = p.matcher(requestBody);
+                requiredConnectorIds.add(connectorId);
             }
         }
 
@@ -418,7 +397,7 @@ public class LoadTestConfigurator {
         lines.add("\n");
     }
 
-    void readConnectorMap(String responseFileContent, String filename) {
+    void readConnectorMap(String responseFileContent, String requestFilename) {
         String responseJson = "";
         boolean htmlRequest = false;
         try {
@@ -464,16 +443,16 @@ public class LoadTestConfigurator {
                                 String cssId = payload.getString("payload");
                                 nodeIdToCssIdMap.put(nodeId, cssId);
                                 nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-                                nodeIdToRequestFileNames.get(nodeId).add(filename);
+                                nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
                             }
                         }
                         if (node.hasKey("key") && node.getString("key").equals("label")) {
                             // {"node":39,"type":"put","key":"label","feat":1,"value":"Category"}
                             JsonString labelValue = node.get("value");
-                            if (Strings.isNullOrEmpty(labelValue.getString())) {
+                            if (!Strings.isNullOrEmpty(labelValue.getString())) {
                                 nodeIdToLabelMap.put(nodeId, labelValue.getString());
                                 nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-                                nodeIdToRequestFileNames.get(nodeId).add(filename);
+                                nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
                             }
                         }
                     }
@@ -482,131 +461,10 @@ public class LoadTestConfigurator {
 
             System.out.println("x");
 
-
-
-//            final String[] connectorIdsInState = initialState.keys();
-//            final Deque<String> connectorIdStack = new ArrayDeque<>();
-//            final Map<String, List<JsonObject>> connectorIdToStatesMap = new HashMap<>();
-//            final Set<String> usedMatchinPropertyKeyVals = new HashSet<>();
-//
-//            for (String connectorId : connectorIdsInState) {
-//                connectorIdStack.push(connectorId);
-//            }
-//            while (!connectorIdStack.isEmpty()) {
-//                String connectorId = connectorIdStack.pop();
-//                connectorIdToStatesMap.computeIfAbsent(connectorId, k -> new ArrayList<>());
-//                final List<JsonObject> states = connectorIdToStatesMap.get(connectorId);
-//                JsonObject currentState = null;
-//                if (states.isEmpty()) {
-//                    states.add(initialState);
-//                }
-//                currentState = states.get(0);
-//
-//                JsonObject connectorState = currentState.getObject(connectorId);
-//
-//                if (connectorState.hasKey("childData")) {
-//                    final JsonObject childConnectorState = connectorState.getObject("childData");
-//                    final String[] childKeys = childConnectorState.keys();
-//                    for (String childKey : childKeys) {
-//                        connectorIdStack.push(childKey);
-//                        connectorIdToStatesMap.computeIfAbsent(childKey, k -> new ArrayList<>());
-//                        final List<JsonObject> childStates = connectorIdToStatesMap.get(childKey);
-//                        childStates.add(childConnectorState);
-//                    }
-//                }
-//
-//                for (JsonObject state : states) {
-//                    connectorState = state.getObject(connectorId);
-//                    for (String matchingProperty : matchingProperties) {
-//                        if (connectorState.hasKey(matchingProperty) && connectorIdToMatchingPropertyKeyMap.get(connectorId) == null) {
-//                            connectorIdToMatchingPropertyKeyMap.put(connectorId, matchingProperty);
-//
-//                            String propertyValue;
-//                            try {
-//                                propertyValue = connectorState.getString(matchingProperty);
-//                            } catch (Exception e) {
-//                                try {
-//                                    propertyValue = connectorState.getArray(matchingProperty).toJson();
-//                                } catch (Exception e1) {
-//                                    try {
-//                                        propertyValue = connectorState.getObject(matchingProperty).toJson();
-//                                    } catch (Exception e2) {
-//                                        continue;
-//                                    }
-//                                }
-//                            }
-//                            if (!propertyValue.isEmpty() && !usedMatchinPropertyKeyVals.contains(matchingProperty + ":" + propertyValue)) {
-//                                usedMatchinPropertyKeyVals.add(matchingProperty + ":" + propertyValue);
-//                                connectorIdToMatchingPropertyValueMap.put(connectorId, propertyValue);
-//                                nodeIdToRequestFileNames.computeIfAbsent(connectorId, k -> new ArrayList<>());
-//                                nodeIdToRequestFileNames.get(connectorId).add(filename);
-//                                if (htmlRequest) {
-//                                    htmlRequestConnectors.add(connectorId);
-//                                }
-//                                break;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//
-//            if (jsonObject.hasKey("rpc")) {
-//                final JsonArray rpcArray = jsonObject.get("rpc");
-//                for (int i = 0; i < rpcArray.length(); i++) {
-//                    try {
-//                        final JsonArray subArray = rpcArray.getArray(i);
-//                        if (subArray.length() > 2) {
-//                            final String connectorId = subArray.getString(0);
-//                            final String className = subArray.getString(1);
-//                        }
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                        // ignore
-//                    }
-//                }
-//            }
-//
-//            if (jsonObject.hasKey("types")) {
-//                final JsonObject types = jsonObject.getObject("types");
-//                String[] connectorIds = types.keys();
-//                for (String connectorId : connectorIds) {
-//                    final String typeId = types.getString(connectorId);
-//                    if (!mappedConnectorTypeIds.contains(connectorId)) {
-//                        mappedConnectorTypeIds.add(connectorId);
-//                        connectorIdToTypeIdMap.put(connectorId, typeId);
-//                        typeIdToCountMap.merge(typeId, 1, (a, b) -> a + b);
-//                    }
-//                }
-//            }
-//
-//            if (jsonObject.hasKey("hierarchy")) {
-//                final JsonObject hierarchy = jsonObject.getObject("hierarchy");
-//                String[] connectorIds = hierarchy.keys();
-//                for (String connectorId : connectorIds) {
-//                    final JsonArray childConnectorsIds = hierarchy.getArray(connectorId);
-//                    for (int i = 0; i < childConnectorsIds.length(); i++) {
-//                        connectorIdToParentIdMap.put(childConnectorsIds.getString(i), connectorId);
-//                    }
-//                }
-//            }
-
         } catch (Exception e) {
             Logger.getLogger(LoadTestConfigurator.class.getName()).severe(responseJson);
             Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse response json " + responseJson);
         }
-
-    }
-
-//    Map<String, String> getConnectorIdToMatchingPropertyKeyMap() {
-//        return connectorIdToMatchingPropertyKeyMap;
-//    }
-//
-//    Map<String, String> getConnectorIdToMatchingPropertyValueMap() {
-//        return connectorIdToMatchingPropertyValueMap;
-//    }
-
-    Map<String, List<String>> getNodeIdToRequestFileNames() {
-        return nodeIdToRequestFileNames;
     }
 
     private void loadPropertiesFile() {
