@@ -118,7 +118,16 @@ public class LoadTestConfigurator {
     }
 
     private void removePossibleBodyByteCheck() {
-        lines = lines.stream().filter(line -> !line.contains("check(bodyBytes.is(RawFileBody")).collect(Collectors.toList());
+        List<String> newLines = new ArrayList<>();
+        for (int i=0; i<lines.size(); i++) {
+            String aline = lines.get(i);
+            if (aline.contains(".check(bodyBytes.is(")) {
+                newLines.add("\t\t\t)");
+            } else {
+                newLines.add(aline);
+            }
+        }
+        lines = newLines;
     }
 
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
@@ -218,7 +227,7 @@ public class LoadTestConfigurator {
     private void replacehardCodedUiIdAndPushIds() {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
-            if (aline.contains("?v-uiId=")) {
+            if (aline.contains("v-uiId=")) {
                 lines.remove(i);
                 String newLine = aline.replaceFirst("v\\-uiId=\\d{0,2}", Matcher.quoteReplacement("v-uiId=${uiId}"));
                 lines.add(i, newLine);
