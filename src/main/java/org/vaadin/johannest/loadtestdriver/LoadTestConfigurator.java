@@ -641,10 +641,12 @@ public class LoadTestConfigurator {
                         final JsonObject childConnectorState = connectorState.getObject("childData");
                         final String[] childKeys = childConnectorState.keys();
                         for (String childKey : childKeys) {
-                            connectorIdStack.push(childKey);
-                            connectorIdToStatesMap.computeIfAbsent(childKey, k -> new ArrayList<>());
-                            final List<JsonObject> childStates = connectorIdToStatesMap.get(childKey);
-                            childStates.add(childConnectorState);
+                            if (!connectorIdStack.contains(childKey)) {
+                                connectorIdStack.push(childKey);
+                                connectorIdToStatesMap.computeIfAbsent(childKey, k -> new ArrayList<>());
+                                final List<JsonObject> childStates = connectorIdToStatesMap.get(childKey);
+                                childStates.add(childConnectorState);
+                            }
                         }
                     }
 
