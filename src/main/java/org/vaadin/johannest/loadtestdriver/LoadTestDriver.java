@@ -48,12 +48,12 @@ public class LoadTestDriver extends ChromeDriver {
         }
     }
 
-    public static String getLocalIpAddressUrlWithPort(int port) {
-        return "http://" + getLocalIpAddress() + ":" + port;
+    public static String getLocalIpAddressUrlWithPort(int port, boolean tls) {
+        return tls ? "https" : "http"+"://" + getLocalIpAddress() + ":" + port;
     }
 
-    public static String getLocalIpAddressWithPortAndContextPath(int port, String contextPath) {
-        return getLocalIpAddressUrlWithPort(port) + "/" + contextPath;
+    public static String getLocalIpAddressWithPortAndContextPath(int port, String contextPath, boolean tls) {
+        return getLocalIpAddressUrlWithPort(port, tls) + "/" + contextPath;
     }
 
     @Override
@@ -82,7 +82,9 @@ public class LoadTestDriver extends ChromeDriver {
             waitForAWhile();
             super.close();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+                loadTestConfigurator.configureTestFile(true, message -> {
+                    throw new AssertionError("Test file configuration failed: "+message);
+                });
             }
         }
     }
@@ -102,7 +104,9 @@ public class LoadTestDriver extends ChromeDriver {
             waitForAWhile();
             super.quit();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+                loadTestConfigurator.configureTestFile(true, message -> {
+                    throw new AssertionError("Test file configuration failed: "+message);
+                });
             }
         }
     }

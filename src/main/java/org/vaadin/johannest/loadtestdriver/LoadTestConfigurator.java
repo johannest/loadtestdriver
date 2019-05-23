@@ -18,8 +18,16 @@ import com.google.common.base.Strings;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.commons.lang3.tuple.Triple;
+
+import javax.annotation.Nullable;
 
 public class LoadTestConfigurator {
+
+    public interface ConfiguratioFailedCallback {
+        void conficuratioFailed(String message);
+    }
 
     public static final String V8_GRID_DATACOMM = "com.vaadin.shared.data.DataCommunicatorClientRpc";
 
@@ -59,6 +67,8 @@ public class LoadTestConfigurator {
     private Integer uidlHeadersNo;
     private String uidlPath;
 
+    private ConfiguratioFailedCallback errorCallback;
+
     public LoadTestConfigurator(LoadTestParameters loadTestParameters) {
         this.loadTestParameters = loadTestParameters;
         loadPropertiesFile();
@@ -77,10 +87,11 @@ public class LoadTestConfigurator {
     }
 
     public void configureTestFile() {
-        configureTestFile(true);
+        configureTestFile(true, null);
     }
 
-    public String configureTestFile(boolean saveResults) {
+    public String configureTestFile(boolean saveResults, @Nullable ConfiguratioFailedCallback errorCallback) {
+        this.errorCallback = errorCallback;
         System.out.println("### configureTestFile, save=" + saveResults);
         final String fileName = tempFilePath + "/" + className + ".scala";
         Logger.getLogger(LoadTestConfigurator.class.getName()).info("Configuring test file: " + fileName);
@@ -327,6 +338,8 @@ public class LoadTestConfigurator {
         List<String> extractList = null;
         List<Integer> toBeRemovedIndexes = null;
 
+        List<Triple<Integer, List<Integer>, List<String>>> postTryMaxIndexes = new ArrayList<>();
+
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
             if (aline.contains("tryMax")) {
@@ -356,15 +369,29 @@ public class LoadTestConfigurator {
                 String requestFileName = getRequestFileName(aline);
                 String requestContent = readRequestResponseFileContent(requestFileName);
                 forcySyncAfterTryMax = requestContent.contains("\"resynchronize\":true");
+                if (forcySyncAfterTryMax) {
+                    postTryMaxIndexes.add(new ImmutableTriple<>(tryMaxChecksIndex, toBeRemovedIndexes, extractList));
+                }
+                tryMaxChecksIndex = -1;
+                toBeRemovedIndexes = null;
+                extractList = null;
             }
         }
 
-        if (forcySyncAfterTryMax && extractList!=null) {
+        int previousLinesListSize = lines.size();
+        int linesLiseSizeDelta = 0;
+        for (Triple<Integer, List<Integer>, List<String>> triplet : postTryMaxIndexes) {
+            tryMaxChecksIndex = triplet.getLeft();
+            toBeRemovedIndexes = triplet.getMiddle();
+            extractList = triplet.getRight();
+
             Collections.reverse(toBeRemovedIndexes);
-            for (Integer index: toBeRemovedIndexes) {
-                lines.remove(index.intValue());
+            for (Integer index : toBeRemovedIndexes) {
+                lines.remove(index+linesLiseSizeDelta);
             }
             lines.addAll(tryMaxChecksIndex, extractList);
+            linesLiseSizeDelta = lines.size()-previousLinesListSize;
+            previousLinesListSize = lines.size();
         }
     }
 
@@ -607,6 +634,9 @@ public class LoadTestConfigurator {
                     htmlRequest = true;
                 }
                 responseJson = responseJson.replace("uidl\":\"{", Matcher.quoteReplacement("uidl\":{"));
+                if (responseJson.endsWith("}\"}")) {
+                    responseJson = responseJson.substring(0, responseJson.length()-3)+"}}";
+                }
                 responseJson = responseJson.replace("]}\"}", Matcher.quoteReplacement("]}}"));
                 if (responseJson.startsWith("[")) {
                     responseJson = responseJson.substring(1, responseJson.length() - 1);
@@ -740,6 +770,9 @@ public class LoadTestConfigurator {
             } catch (Exception e) {
                 Logger.getLogger(LoadTestConfigurator.class.getName()).severe(responseJson);
                 Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse response json " + responseJson);
+                if (errorCallback!=null) {
+                    errorCallback.conficuratioFailed("Failed to parse response json " + responseJson);
+                }
             }
         }
     }

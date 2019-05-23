@@ -97,7 +97,7 @@ public class LoadTestConfiguratorTest {
         configurator.setResourcesPath("/dev/idea/loadtestdriver/src/test/resources/resources");
         configurator.setClassName("Barista_addOrder");
 
-        String resultFile = configurator.configureTestFile(false);
+        String resultFile = configurator.configureTestFile(false, null);
         System.out.println("-----------------------");
         System.out.println(resultFile);
     }
