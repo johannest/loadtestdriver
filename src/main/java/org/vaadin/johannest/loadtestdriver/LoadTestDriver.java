@@ -15,6 +15,7 @@ public class LoadTestDriver extends ChromeDriver {
     public static final String INJECT_KEYWORD = "INJECT_TRYMAX_LOOP";
 
     private final LoadTestConfigurator loadTestConfigurator;
+    private LoadTestParameters loadTestParameters;
     private final boolean headlessEnabled;
 
     private Recorder recorder;
@@ -32,6 +33,7 @@ public class LoadTestDriver extends ChromeDriver {
     public LoadTestDriver(ChromeOptions options, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
         super(options);
         loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
+        this.loadTestParameters = loadTestParameters;
         this.headlessEnabled = headlessEnabled;
     }
 
@@ -48,12 +50,12 @@ public class LoadTestDriver extends ChromeDriver {
         }
     }
 
-    public static String getLocalIpAddressUrlWithPort(int port, boolean tls) {
-        return tls ? "https" : "http"+"://" + getLocalIpAddress() + ":" + port;
+    public static String getLocalIpAddressUrlWithPort(int port) {
+        return "http://" + getLocalIpAddress() + ":" + port;
     }
 
-    public static String getLocalIpAddressWithPortAndContextPath(int port, String contextPath, boolean tls) {
-        return getLocalIpAddressUrlWithPort(port, tls) + "/" + contextPath;
+    public static String getLocalIpAddressWithPortAndContextPath(int port, String contextPath) {
+        return getLocalIpAddressUrlWithPort(port) + "/" + contextPath;
     }
 
     @Override
@@ -186,9 +188,12 @@ public class LoadTestDriver extends ChromeDriver {
      * @param maxTries          how many time server-side is polled before marking the request failed
      * @param pauseBetweenTries pause between polls
      * @param responseRegex     regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex    regex to parse tryMax parameters with String.split()
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
      */
-    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex) {
-        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, -1);
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, boolean resynchronizePolling, String requestName) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, delimiter, delimiterRegex, -1, resynchronizePolling, requestName);
     }
 
     /**
@@ -197,10 +202,13 @@ public class LoadTestDriver extends ChromeDriver {
      * @param maxTries                 how many time server-side is polled before marking the request failed
      * @param pauseBetweenTries        pause between polls
      * @param responseRegex            regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex           regex to parse tryMax parameters with String.split()
      * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
      */
-    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, int waitAndforceSyncAfter_ms) {
-        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, waitAndforceSyncAfter_ms);
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, int waitAndforceSyncAfter_ms, boolean resynchronizePolling, String requestName) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, delimiter, delimiterRegex, waitAndforceSyncAfter_ms, resynchronizePolling, requestName);
     }
 
     /**
@@ -210,9 +218,14 @@ public class LoadTestDriver extends ChromeDriver {
      * @param maxTries                 how many time server-side is polled before marking the request failed
      * @param pauseBetweenTries        pause between polls
      * @param responseRegex            regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex           regex to parse tryMax parameters with String.split()
      * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
      */
-    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex, int waitAndforceSyncAfter_ms) {
+    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, int waitAndforceSyncAfter_ms, boolean resynchronizePolling, String requestName) {
+        loadTestParameters.setTryMaxDelimiterRegex(delimiterRegex);
+        loadTestParameters.setResynchronizePolling(resynchronizePolling);
         ((JavascriptExecutor) this).executeScript("window.open()");
         try {
             Thread.sleep(250);
@@ -220,7 +233,7 @@ public class LoadTestDriver extends ChromeDriver {
             Thread.sleep(250);
             switchTo().window(tabs.get(1));
             Thread.sleep(250);
-            super.get(pingUrl + INJECT_KEYWORD + "." + maxTries + "." + pauseBetweenTries + "." + responseRegex + ".");
+            super.get(pingUrl + INJECT_KEYWORD + delimiter + maxTries + delimiter + pauseBetweenTries + delimiter + responseRegex + delimiter + requestName + delimiter);
             Thread.sleep(250);
             this.execute("close");
             switchTo().window(tabs.get(0));

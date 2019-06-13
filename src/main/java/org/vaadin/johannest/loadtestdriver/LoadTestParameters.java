@@ -8,6 +8,9 @@ public class LoadTestParameters {
     private int minPause;
     private int maxPause;
 
+    private String tryMaxDelimiterRegex;
+    private boolean resynchronizePolling;
+
     public LoadTestParameters() {
     }
 
@@ -61,5 +64,21 @@ public class LoadTestParameters {
 
     public boolean pausesEnabled() {
         return minPause > 0 && maxPause > 0;
+    }
+
+    public String getTryMaxDelimiterRegex() {
+        return tryMaxDelimiterRegex;
+    }
+
+    public void setTryMaxDelimiterRegex(String tryMaxDelimeter) {
+        this.tryMaxDelimiterRegex = tryMaxDelimeter;
+    }
+
+    public void setResynchronizePolling(boolean resynchronizePolling) {
+        this.resynchronizePolling = resynchronizePolling;
+    }
+
+    public boolean isResynchronizePolling() {
+        return resynchronizePolling;
     }
 }

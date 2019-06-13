@@ -224,10 +224,11 @@ public class LoadTestConfigurator {
     private String handleTryMax(BufferedReader br, String newLine) throws IOException {
         if (newLine.contains(LoadTestDriver.INJECT_KEYWORD)) {
             try {
-                String[] lineParts = newLine.substring(newLine.indexOf(LoadTestDriver.INJECT_KEYWORD)).split("\\.");
-                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-4]);
-                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-3]);
-                String regex = lineParts[lineParts.length-2];
+                String[] lineParts = newLine.substring(newLine.indexOf(LoadTestDriver.INJECT_KEYWORD)).split(loadTestParameters.getTryMaxDelimiterRegex());
+                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-5]);
+                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-4]);
+                String regex = lineParts[lineParts.length-3];
+                String requestName = lineParts[lineParts.length-2];
 
                 lines.remove(lines.size()-1);
 
@@ -235,13 +236,18 @@ public class LoadTestConfigurator {
                     newLine = br.readLine();
                 }
                 newLine = br.readLine();
-
+                lines.add("\t\t.exec((session) => session.set(\"pollCounter\", 0))");
                 lines.add("\t\t.tryMax("+maxTries+") {");
                 lines.add("\t\t\tpause("+pauseBetween+" milliseconds)");
-                lines.add("\t\t\t\t.exec(http(\"poll\")");
+                lines.add(".exec((session) => session.set(\"pollCounter\", session(\"pollCounter\").as[Int]+1))");
+                lines.add("\t\t\t\t.exec(http(\""+requestName+" #${pollCounter}\")");
                 lines.add("\t\t\t\t\t.post(\""+uidlPath+"UIDL/?v-uiId=0\")");
                 lines.add("\t\t\t\t\t.headers(headers_"+uidlHeadersNo+")");
-                lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId}}\"\"\")).asJson");
+                if (loadTestParameters.isResynchronizePolling()) {
+                    lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId},\"resynchronize\":true}\"\"\")).asJson");
+                } else {
+                    lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId}}\"\"\")).asJson");
+                }
                 lines.add("\t\t\t\t\t.check(regex(\"\"\""+regex+"\"\"\"))");
                 lines.add("\t\t\t\t)");
                 lines.add("\t\t\t}");

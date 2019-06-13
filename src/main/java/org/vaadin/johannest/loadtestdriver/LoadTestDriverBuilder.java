@@ -174,7 +174,6 @@ public class LoadTestDriverBuilder {
         options.setCapability("proxy", proxy);
         options.addArguments("--disable-gpu");
         options.setHeadless(headlessEnabled);
-        options.setAcceptInsecureCerts(true);
 
         LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
