@@ -1,0 +1,1 @@
+{"csrfToken":"326741aa-6ceb-46d5-b89e-7c121d689a25","rpc":[["50","v","v",["positionx",["i",0]]],["50","v","v",["positiony",["i",0]]],["52","com.vaadin.shared.communication.FieldRpc$FocusAndBlurServerRpc","focus",[]]],"syncId":3,"clientId":2}

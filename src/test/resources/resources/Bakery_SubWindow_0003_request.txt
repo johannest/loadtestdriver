@@ -1,0 +1,1 @@
+{"csrfToken":"326741aa-6ceb-46d5-b89e-7c121d689a25","rpc":[["0","com.vaadin.shared.ui.ui.UIServerRpc","resize",[1251,1249,1251,1249]],["42","com.vaadin.shared.data.DataRequestRpc","requestRows",[40,25,0,40]]],"syncId":0,"clientId":0,"wsver":"8.7.2"}
