@@ -51,10 +51,12 @@ public class LoadTestConfigurator {
     private final Map<String, List<String>> connectorIdToRequestFileNames = new HashMap<>();
     private final Set<String> htmlRequestConnectors = new HashSet<>();
     private final Set<String> requiredConnectorIds = new HashSet<>();
+    private final Set<String> processedFiles = new HashSet<>();
 
     private int gridCounter;
     private int currentGridIndex = 0;
 
+    private String baseUrl;
     private String uiInitRequestFileName;
     private String resourcesPath;
     private String tempFilePath;
@@ -110,6 +112,7 @@ public class LoadTestConfigurator {
             addAdditionalImports();
             removePossibleBodyByteCheck();
             replacehardCodedUiIdAndPushIds();
+            handlePushRequests();
             postTryMaxHandling();
 
             if (saveResults) {
@@ -141,7 +144,16 @@ public class LoadTestConfigurator {
     }
 
     private void removePossibleBodyByteCheck() {
-        lines = lines.stream().filter(line -> !line.contains("check(bodyBytes.is(RawFileBody")).collect(Collectors.toList());
+        List<String> newLines = new ArrayList<>();
+        for (int i=0; i<lines.size(); i++) {
+            String aline = lines.get(i);
+            if (aline.contains(".check(bodyBytes.is(")) {
+                newLines.add("\t\t\t)");
+            } else {
+                newLines.add(aline);
+            }
+        }
+        lines = newLines;
     }
 
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
@@ -153,6 +165,14 @@ public class LoadTestConfigurator {
         while ((line = br.readLine()) != null) {
             previousLine = newLine;
             newLine = line;
+
+            if (newLine.contains(".baseUrl(")) {
+                extractBaseUrl(line);
+            }
+
+            if (newLine.contains(".userAgentHeader")) {
+                insertWSBaseUrl(lines);
+            }
 
             if (newLine.contains("val scn")) {
                 insertHelperMethods(lines);
@@ -166,11 +186,6 @@ public class LoadTestConfigurator {
 
             if (!syncIdsInitialized) {
                 syncIdsInitialized = initializeSyncAndClientIds(newLine, lines);
-            }
-
-            if (newLine.contains(".check(bodyBytes.is(")) {
-                lines.add("\t\t\t)");
-                continue;
             }
 
             if (newLine.contains(".exec(http(")) {
@@ -197,6 +212,18 @@ public class LoadTestConfigurator {
             lines.add(newLine);
         }
         br.close();
+    }
+
+    private void extractBaseUrl(String newLine) {
+        Pattern p = Pattern.compile("^.*.baseUrl\\(\"(.*)\"\\)$");
+        Matcher m = p.matcher(newLine);
+        if (m.find()) {
+            baseUrl = m.group(1);
+        }
+    }
+
+    private void insertWSBaseUrl(List<String> lines) {
+        lines.add("\t\t.wsBaseUrl(\""+baseUrl.replaceFirst("http","ws")+"\")");
     }
 
     private void extractUidlHeaderNumber(String newLine, String previousLine) {
@@ -239,7 +266,7 @@ public class LoadTestConfigurator {
                 lines.add("\t\t.exec((session) => session.set(\"pollCounter\", 0))");
                 lines.add("\t\t.tryMax("+maxTries+") {");
                 lines.add("\t\t\tpause("+pauseBetween+" milliseconds)");
-                lines.add(".exec((session) => session.set(\"pollCounter\", session(\"pollCounter\").as[Int]+1))");
+                lines.add("\t\t\t.exec((session) => session.set(\"pollCounter\", session(\"pollCounter\").as[Int]+1))");
                 lines.add("\t\t\t\t.exec(http(\""+requestName+" #${pollCounter}\")");
                 lines.add("\t\t\t\t\t.post(\""+uidlPath+"UIDL/?v-uiId=0\")");
                 lines.add("\t\t\t\t\t.headers(headers_"+uidlHeadersNo+")");
@@ -319,14 +346,23 @@ public class LoadTestConfigurator {
     private void replacehardCodedUiIdAndPushIds() {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
-            if (aline.contains("/?v-uiId=")) {
+            if (aline.matches(".*/?v-uiId=[0-9]{1,3}.*")) {
                 lines.remove(i);
-                String newLine = aline.replaceFirst("/\\?v\\-uiId=\\d{0,2}", Matcher.quoteReplacement("/?v-uiId=${uiId}"));
+                String newLine = aline.replaceFirst("\\?v-uiId=[0-9]{1,3}", Matcher.quoteReplacement("?v-uiId=${uiId}"));
                 lines.add(i, newLine);
+                --i;
+                continue;
             }
-            if (aline.contains("v-pushId=")) {
+            if (aline.matches(".*v-pushId=[a-z0-9\\-]{1,50}&.*")) {
                 lines.remove(i);
-                String newLine = aline.replaceFirst("v\\-pushId=[a-z0-9\\-]{1,50}&", Matcher.quoteReplacement("v-pushId=${pushId}&"));
+                String newLine = aline.replaceFirst("v-pushId=[a-z0-9\\-]{1,50}&", Matcher.quoteReplacement("v-pushId=${pushId}&"));
+                lines.add(i, newLine);
+                --i;
+                continue;
+            }
+            if (aline.matches(".*X-Atmosphere-tracking-id=[a-z0-9\\-]{20,50}&.*")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("X-Atmosphere-tracking-id=[a-z0-9\\-]{20,50}&", Matcher.quoteReplacement("X-Atmosphere-tracking-id=${atmokey}&"));
                 lines.add(i, newLine);
             }
         }
@@ -401,6 +437,149 @@ public class LoadTestConfigurator {
         }
     }
 
+    // TODO: error prone code should be refactored later
+    private void handlePushRequests() {
+        boolean pushRequestFound = false;
+        boolean pushRequestStill = false;
+        int requestIndex = 0;
+        int lastPushRequestIndex = -1;
+
+        for (int i = 0; i < lines.size(); i++) {
+            String aline = lines.get(i);
+            if (isRequestLine(aline)) {
+                ++requestIndex;
+            }
+
+            if (isPushRequest(aline)) {
+                replaceExecHttpWithExecWs(i);
+                if (!pushRequestFound) {
+                    lines.add(i + 1, "\t\t\t.await(30 seconds)(atmoKeyCheck)");
+                    ++i;
+                }
+
+                if (twoSubsequentPushRequests(requestIndex, lastPushRequestIndex)) {
+                    combineSubsequentPushRequests(i);
+                }
+
+                pushRequestFound = true;
+                pushRequestStill = true;
+                lastPushRequestIndex = requestIndex;
+            }
+            else if (pushRequestFound && pushRequestStill) {
+                if (isRequestLine(aline) || isPushRequestLine(aline)) {
+                    pushRequestStill = false;
+                } else {
+                    if (aline.contains(".headers(headers_")) {
+                        lines.remove(i);
+                        --i;
+                    } else if (isRegexCheckLine(aline)) {
+                        replaceRegularRegexCheckWIthWsStyleCheck(i, aline);
+                    }
+                }
+            }
+        }
+        if (!pushRequestFound) {
+            lines.remove(props.getProperty("atmo_key_extract"));
+        }
+        combineSubsequestWSChecks(lines);
+    }
+
+    private void replaceExecHttpWithExecWs(int lineIndex) {
+        String aline = lines.remove(lineIndex);
+        String previousLine = lines.remove(lineIndex - 1);
+        String newPrevLine = previousLine.replace("exec(http(", "exec(ws(");
+        String newCurrentLine = aline.replace(".get(\"", ".connect(\"");
+        lines.add(lineIndex - 1, newPrevLine);
+        lines.add(lineIndex, newCurrentLine);
+    }
+
+    private boolean twoSubsequentPushRequests(int currentRequestIndex, int lastPushRequestIndex) {
+        return currentRequestIndex-lastPushRequestIndex==1;
+    }
+
+    private void combineSubsequentPushRequests(int lineIndex) {
+        int removedLines = 0;
+        for (int j = 0; j<5; j++) {
+            String bline = lines.get(lineIndex-j);
+            if (bline.matches("^.*await.*\\(atmoKeyCheck.*$")) {
+                break;
+            }
+            lines.remove(lineIndex-j);
+            ++removedLines;
+        }
+        for (int j=lineIndex-removedLines+1; j<lines.size(); j++) {
+            String aline = lines.get(j);
+            if (isRequestLine(aline) && !isPushRequest(aline)) {
+                break;
+            } else if (isRegexCheckLine(aline)) {
+                replaceRegularRegexCheckWIthWsStyleCheck(j, aline);
+            } else if (!isPauseOrClosingParenthesisLine(lines.get(j))) {
+                lines.remove(j);
+                --j;
+            }
+        }
+    }
+
+    private void replaceRegularRegexCheckWIthWsStyleCheck(int lineIndex, String aline) {
+        String newCheckLine = getWsStyleCheck(aline);
+        lines.remove(lineIndex);
+        lines.add(lineIndex, newCheckLine);
+    }
+
+    private boolean isPauseOrClosingParenthesisLine(String line) {
+        String removedTabs = line.trim().replaceAll("\t","");
+        return removedTabs.equals(")") || removedTabs.contains("pause(");
+    }
+
+    private void combineSubsequestWSChecks(List<String> lines) {
+        for (int i = 0; i < lines.size()-1; i++) {
+            if (isWSRegexCheckLine(lines.get(i)) && isWSRegexCheckLine(lines.get(i+1))) {
+                String newCheckLine = combineWsChecks(lines.get(i), lines.get(i+1));
+                lines.remove(i+1);
+                lines.remove(i);
+                lines.add(i, newCheckLine);
+            }
+        }
+    }
+
+    private String getWsStyleCheck(String aline) {
+        return "\t\t\t.await(30 seconds)(ws.checkTextMessage(\""+aline.trim()+"\")"+aline.trim()+")";
+    }
+
+    private String combineWsChecks(String firstCheckLine, String secondCheckLine) {
+        String secondCheck = extractCheck(secondCheckLine);
+        return firstCheckLine.replaceFirst("\\)$", ", ws.checkTextMessage(\"" + secondCheck + "\").check(" + secondCheck + "))\n");
+    }
+
+    private String extractCheck(String secondCheckLine) {
+        final Pattern pattern = Pattern.compile("^.*.check\\((.*?)\\).*$");
+        final Matcher matcher = pattern.matcher(secondCheckLine);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    private boolean isRegexCheckLine(String aline) {
+        return aline.contains(".check(extract_") || aline.contains("ws.checkTextMessage") || aline.contains("atmoKeyCheck");
+    }
+
+    private boolean isWSRegexCheckLine(String aline) {
+        return aline.contains("ws.checkTextMessage") || aline.contains("atmoKeyCheck");
+    }
+
+    private boolean isRequestLine(String aline) {
+        return aline.contains(".exec(http");
+    }
+
+    private boolean isPushRequestLine(String aline) {
+        return aline.contains(".exec(ws(");
+    }
+
+    private boolean isPushRequest(String line) {
+        return line!=null && line.contains("/PUSH?v-uiId=") && line.contains("X-Atmosphere-tracking-id=");
+    }
+
     private String escapeCurlyBraces(String regexExtractor) {
         // TODO: this is rather ugly hack to escape curly braces
         System.out.println(regexExtractor);
@@ -468,8 +647,17 @@ public class LoadTestConfigurator {
 
     private String requestBodyTreatments(String newLine, boolean saveResults) throws IOException {
         if (newLine.contains("RawFileBody")) {
-            newLine = replaceWithELFileBody(newLine, saveResults);
-            Logger.getLogger(LoadTestConfigurator.class.getName()).info(newLine);
+            if (newLine.contains("_response.txt")) {
+                String fileName = getRequestFileName(newLine);
+                if (!processedFiles.contains(fileName)) {
+                    String responseBody = readRequestResponseFileContent(fileName);
+                    readConnectorMap(responseBody, fileName);
+                    processedFiles.add(fileName);
+                }
+            } else {
+                newLine = replaceWithELFileBody(newLine, saveResults);
+                Logger.getLogger(LoadTestConfigurator.class.getName()).info(newLine);
+            }
         }
         return newLine;
     }
@@ -521,9 +709,9 @@ public class LoadTestConfigurator {
                     lines.add(formattedParameterLine);
                 }
             }
-            lines.add("\t\t\t.check(uIdExtract)");
-            lines.add("\t\t\t.check(pushIdExtract)");
-            lines.add("\t\t\t.check(xsrfTokenExtract))");
+            lines.add(lines.size()-1, "\t\t\t.check(uIdExtract)");
+            lines.add(lines.size()-1,"\t\t\t.check(pushIdExtract)");
+            lines.add(lines.size()-1,"\t\t\t.check(xsrfTokenExtract)");
         }
     }
 
@@ -534,7 +722,10 @@ public class LoadTestConfigurator {
 
             String requestBody = readRequestResponseFileContent(fileName);
             String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
-            readConnectorMap(responseBody, fileName);
+            if (!processedFiles.contains(fileName)) {
+                readConnectorMap(responseBody, fileName);
+                processedFiles.add(fileName);
+            }
             requestBody = doRequestBodyTreatments(requestBody);
 
             if (saveRequest) {
@@ -616,6 +807,7 @@ public class LoadTestConfigurator {
         lines.add(props.getProperty("xsrf_token_extract"));
         lines.add(props.getProperty("push_id_extract"));
         lines.add(props.getProperty("uiid_id_extract"));
+        lines.add(props.getProperty("atmo_key_extract"));
         lines.add("\n");
     }
 
@@ -624,7 +816,14 @@ public class LoadTestConfigurator {
         boolean htmlRequest = false;
         if (!responseFileContent.startsWith("<!doctype html>")) {
             try {
-                responseJson = responseFileContent.replace("for(;;);", "");
+                responseJson = responseFileContent.trim().replace("for(;;);", "");
+                if (responseJson.substring(0, 10).contains("|")) {
+                    responseJson = responseJson.split("\\|")[1];
+                    if (responseJson.length()<40) {
+                        // is probably the atmokey
+                        return;
+                    }
+                }
                 if (responseJson.contains("Vaadin-Security-Key")) {
                     responseJson = responseJson.replaceAll("<span class=.{1,50}</span>", "<span></span>");
 
