@@ -1,6 +1,6 @@
 package org.vaadin.johannest.loadtestdriver;
 
-public class LoadTestParameters {
+public class ConfigurationParameters {
 
     private int concurrentUsers;
     private int rampUpTime;
@@ -8,10 +8,10 @@ public class LoadTestParameters {
     private int minPause;
     private int maxPause;
 
-    public LoadTestParameters() {
+    public ConfigurationParameters() {
     }
 
-    public LoadTestParameters(int concurrentUsers, int rampUpTime, int repeats, int minPause, int maxPause) {
+    public ConfigurationParameters(int concurrentUsers, int rampUpTime, int repeats, int minPause, int maxPause) {
         this.concurrentUsers = concurrentUsers;
         this.rampUpTime = rampUpTime;
         this.repeats = repeats;

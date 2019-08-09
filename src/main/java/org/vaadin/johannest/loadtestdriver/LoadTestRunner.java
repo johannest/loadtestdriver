@@ -18,24 +18,22 @@ import scala.collection.mutable.StringBuilder;
 
 public class LoadTestRunner {
 
-    private final LoadTestDriver loadTestDriver;
-    private final Recorder recorder;
+    private final RecordingParameters recordingParameters;
 
-    public LoadTestRunner(LoadTestDriver loadTestDriver, Recorder recorder) {
-        this.loadTestDriver = loadTestDriver;
-        this.recorder = recorder;
+    public LoadTestRunner(RecordingParameters recordingParameters) {
+        this.recordingParameters = recordingParameters;
     }
 
     private static void printLines(String name, InputStream ins) throws Exception {
         String line = null;
         final BufferedReader in = new BufferedReader(new InputStreamReader(ins));
         while ((line = in.readLine()) != null) {
-            Logger.getLogger(Recorder.class.getName()).info(name + " " + line);
+            Logger.getLogger(LoadTestsRecorder.class.getName()).info(name + " " + line);
         }
     }
 
-    private void compileTestFile() {
-        Logger.getLogger(Recorder.class.getName()).info("Compiling test file");
+    public void compileTestFile() {
+        Logger.getLogger(LoadTestsRecorder.class.getName()).info("Compiling test file");
         try {
             final String classpath = System.getProperty("java.class.path");
 
@@ -46,36 +44,36 @@ public class LoadTestRunner {
             cmd.append(" io.gatling.compiler.ZincCompiler ");
             cmd.append("-ccp " + classpath);
             cmd.append(" -sf ");
-            cmd.append(recorder.getSimulationFilePath());
+            cmd.append(recordingParameters.getSimulationFilePath());
             cmd.append(" -bf ");
-            cmd.append(recorder.getResourcesPath());
+            cmd.append(recordingParameters.getResourcesPath());
             // cmd.append(" -ro ");
             // cmd.append(recorder.getSimulationFilePath()+"/results");
 
-            Logger.getLogger(Recorder.class.getName()).info("Running ZincCompiler with comman: " + cmd.toString());
+            Logger.getLogger(LoadTestsRecorder.class.getName()).info("Running ZincCompiler with comman: " + cmd.toString());
             final Process pro = Runtime.getRuntime().exec(cmd.toString());
             printLines(" stdout:", pro.getInputStream());
             printLines(" stderr:", pro.getErrorStream());
             pro.waitFor();
-            Logger.getLogger(Recorder.class.getName()).info(" exitValue() " + pro.exitValue());
+            Logger.getLogger(LoadTestsRecorder.class.getName()).info(" exitValue() " + pro.exitValue());
         } catch (final Exception e) {
-            Logger.getLogger(Recorder.class.getName()).severe("Compilation failed");
+            Logger.getLogger(LoadTestsRecorder.class.getName()).severe("Compilation failed");
             e.printStackTrace();
         }
     }
 
-    private void showLoadTestMonitor() {
+    public void showLoadTestMonitor() {
         // TODO Auto-generated method stub
 
     }
 
-    private void runLoadTest() {
+    public void runLoadTest() {
         final GatlingPropertiesBuilder propsBuilder = new GatlingPropertiesBuilder();
-        propsBuilder.binariesDirectory(recorder.getSimulationFilePath() + "/test-classes");
-        propsBuilder.resourcesDirectory(recorder.getSimulationFilePath());
-        propsBuilder.resultsDirectory(recorder.getResourcesPath() + "/results");
-        propsBuilder.simulationsDirectory(recorder.getSimulationFilePath());
-        propsBuilder.resourcesDirectory(recorder.getResourcesPath());
+        propsBuilder.binariesDirectory(recordingParameters.getSimulationFilePath() + "/test-classes");
+        propsBuilder.resourcesDirectory(recordingParameters.getSimulationFilePath());
+        propsBuilder.resultsDirectory(recordingParameters.getResourcesPath() + "/results");
+        propsBuilder.simulationsDirectory(recordingParameters.getSimulationFilePath());
+        propsBuilder.resourcesDirectory(recordingParameters.getResourcesPath());
         final Map<String, Object> propsMap = propsBuilder.build();
         propsMap.put("gatling.core.mute", true);
         // propsMap.put("gatling.core.directory.reportsOnly",
@@ -83,18 +81,18 @@ public class LoadTestRunner {
         Gatling.fromMap(propsMap);
     }
 
-    private void showResultRaport() {
+    public void showResultRaport() {
         try {
             Desktop.getDesktop().browse(findReportFile().toURI());
         } catch (final IOException e) {
-            Logger.getLogger(Recorder.class.getName()).severe(e.getLocalizedMessage());
-            Logger.getLogger(Recorder.class.getName()).severe("Failed to open raport");
+            Logger.getLogger(LoadTestsRecorder.class.getName()).severe(e.getLocalizedMessage());
+            Logger.getLogger(LoadTestsRecorder.class.getName()).severe("Failed to open raport");
         }
     }
 
-    private File findReportFile() {
-        Logger.getLogger(Recorder.class.getName()).info("findReportFile");
-        final File dir = new File(recorder.getResourcesPath() + "/..");
+    public File findReportFile() {
+        Logger.getLogger(LoadTestsRecorder.class.getName()).info("findReportFile");
+        final File dir = new File(recordingParameters.getResourcesPath() + "/..");
         final FileFilter fileFilter = new WildcardFileFilter("gatling-*");
         final File[] files = dir.listFiles(fileFilter);
 
@@ -102,7 +100,7 @@ public class LoadTestRunner {
         long newestTimeStamp = 0;
 
         for (final File file : files) {
-            Logger.getLogger(Recorder.class.getName()).info(file.getName());
+            Logger.getLogger(LoadTestsRecorder.class.getName()).info(file.getName());
             final String timeStamp = file.getName().split("-")[1];
             final long ts = Long.parseLong(timeStamp);
             if (ts > newestTimeStamp) {
@@ -110,8 +108,7 @@ public class LoadTestRunner {
                 newestTimeStamp = ts;
             }
         }
-        Logger.getLogger(Recorder.class.getName()).info("Report file " + newest.getName());
+        Logger.getLogger(LoadTestsRecorder.class.getName()).info("Report file " + newest.getName());
         return new File(newest.getPath() + "/index.html");
     }
-
 }

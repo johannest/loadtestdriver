@@ -174,10 +174,10 @@ public class LoadTestDriverBuilder {
         options.addArguments("--disable-gpu");
         options.setHeadless(headlessEnabled);
 
-        LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
+        ConfigurationParameters configurationParameters = new ConfigurationParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
 
-        final LoadTestDriver driver = new LoadTestDriver(options, loadTestParameters, false);
+        final LoadTestDriver driver = new LoadTestDriver(options, configurationParameters, false);
         driver.setProxyHost(ipaddress);
         driver.setProxyPort(proxyPort);
         driver.setSimulationFilePath(testPath);

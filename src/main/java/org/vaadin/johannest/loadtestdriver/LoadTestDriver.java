@@ -10,23 +10,24 @@ import org.openqa.selenium.chrome.ChromeOptions;
 public class LoadTestDriver extends ChromeDriver {
 
     private final LoadTestConfigurator loadTestConfigurator;
+    private ConfigurationParameters configurationParameters;
     private final boolean headlessEnabled;
 
-    private Recorder recorder;
+    private LoadTestsRecorder loadTestsRecorder;
     private boolean recording;
 
     private int proxyPort;
     private String proxyHost;
-    private String simulationFilePath;
-    private String resourcesPath;
-    private String testName;
 
     private boolean testConfiguringEnabled;
     private boolean staticResourcesIngnoringEnabled;
+    private RecordingParameters recordinParameters;
 
-    public LoadTestDriver(ChromeOptions options, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
+    public LoadTestDriver(ChromeOptions options, ConfigurationParameters configurationParameters, boolean headlessEnabled) {
         super(options);
-        loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
+        recordinParameters = new RecordingParameters();
+        loadTestConfigurator = new LoadTestConfigurator(configurationParameters);
+        this.configurationParameters = configurationParameters;
         this.headlessEnabled = headlessEnabled;
     }
 
@@ -59,15 +60,16 @@ public class LoadTestDriver extends ChromeDriver {
 
     private void startRecording() {
         Logger.getLogger(LoadTestDriver.class.getName()).info("## startRecording");
-        recorder = new Recorder(getProxyPort(), getProxyHost(), getSimulationFilePath(), getResourcesPath(), getTestName(),
+        recordinParameters = new RecordingParameters(getProxyPort(), getProxyHost(), getSimulationFilePath(), getResourcesPath(), getTestName(),
                 staticResourcesIngnoringEnabled, headlessEnabled);
+        loadTestsRecorder = new LoadTestsRecorder(recordinParameters);
 
-        loadTestConfigurator.setClassName(recorder.getClassName());
-        loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
-        loadTestConfigurator.setTempFilePath(recorder.getSimulationFilePath());
+        loadTestConfigurator.setClassName(recordinParameters.getTestName());
+        loadTestConfigurator.setResourcesPath(recordinParameters.getResourcesPath());
+        loadTestConfigurator.setTempFilePath(recordinParameters.getSimulationFilePath());
 
         recording = true;
-        recorder.start();
+        loadTestsRecorder.start();
     }
 
     @Override
@@ -104,7 +106,7 @@ public class LoadTestDriver extends ChromeDriver {
 
     private String stopRecordingAndSaveResults() {
         recording = false;
-        return recorder.stopAndSave();
+        return loadTestsRecorder.stopAndSave();
     }
 
     public int getProxyPort() {
@@ -124,35 +126,35 @@ public class LoadTestDriver extends ChromeDriver {
     }
 
     public String getSimulationFilePath() {
-        return simulationFilePath;
+        return recordinParameters.getSimulationFilePath();
     }
 
     public void setSimulationFilePath(String simulationFilePath) {
-        this.simulationFilePath = simulationFilePath;
+        this.recordinParameters.setSimulationFilePath(simulationFilePath);
     }
 
     private String getResourcesPath() {
-        return resourcesPath;
+        return recordinParameters.getResourcesPath();
     }
 
     public void setResourcesPath(String resourcesPath) {
-        this.resourcesPath = resourcesPath;
+        recordinParameters.setResourcesPath(resourcesPath);
     }
 
     private String getTestName() {
-        return testName;
+        return recordinParameters.getTestName();
     }
 
     public void setTestName(String testName) {
-        this.testName = testName;
+        recordinParameters.setTestName(testName);
     }
 
     public void setStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
         this.staticResourcesIngnoringEnabled = staticResourcesIngnoringEnabled;
     }
 
-    public Recorder getRecorder() {
-        return recorder;
+    public LoadTestsRecorder getLoadTestsRecorder() {
+        return loadTestsRecorder;
     }
 
     public boolean isRecording() {

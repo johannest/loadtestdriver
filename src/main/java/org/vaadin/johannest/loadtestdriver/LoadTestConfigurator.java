@@ -8,18 +8,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import elemental.json.Json;
@@ -29,13 +21,17 @@ import elemental.json.JsonString;
 
 public class LoadTestConfigurator {
 
-    private final LoadTestParameters loadTestParameters;
+    private final ConfigurationParameters configurationParameters;
 
     private final Map<String, String> nodeIdToCssIdMap = new HashMap<>();
     private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
 
     private final Map<String, List<String>> nodeIdToRequestFileNames = new HashMap<>();
     private final Set<String> requiredConnectorIds = new HashSet<>();
+
+    private TreeMap<String, String> requestNamesAndBodies = new TreeMap<>();
+    private TreeMap<String, String> responseNamesAndBodies = new TreeMap<>();
+    private TreeMap<String, String> requestNamesAndBodiesProcessed = new TreeMap<>();
 
     private String uiInitRequestFileName;
     private String resourcesPath;
@@ -48,8 +44,11 @@ public class LoadTestConfigurator {
 
     private Integer uidlHeadersNo;
 
-    public LoadTestConfigurator(LoadTestParameters loadTestParameters) {
-        this.loadTestParameters = loadTestParameters;
+    private String processedScalaFilesContent;
+    private String testFileNameWithPath;
+
+    public LoadTestConfigurator(ConfigurationParameters configurationParameters) {
+        this.configurationParameters = configurationParameters;
         loadPropertiesFile();
     }
 
@@ -71,10 +70,10 @@ public class LoadTestConfigurator {
 
     public String configureTestFile(boolean saveResults) {
         System.out.println("### configureTestFile, save=" + saveResults);
-        final String fileName = tempFilePath + "/" + className + ".scala";
-        Logger.getLogger(LoadTestConfigurator.class.getName()).info("Configuring test file: " + fileName);
+        testFileNameWithPath = tempFilePath + "/" + className + ".scala";
+        Logger.getLogger(LoadTestConfigurator.class.getName()).info("Configuring test file: " + testFileNameWithPath);
         try {
-            final File file = new File(fileName);
+            final File file = new File(testFileNameWithPath);
             final FileReader fr = new FileReader(file);
             final BufferedReader br = new BufferedReader(fr);
 
@@ -90,14 +89,7 @@ public class LoadTestConfigurator {
             replacehardCodedUiIdAndPushIds();
 
             if (saveResults) {
-                final FileWriter fw = new FileWriter(file);
-                final BufferedWriter bw = new BufferedWriter(fw);
-                for (final String s : lines) {
-                    bw.write(s + "\n");
-                }
-
-                bw.flush();
-                bw.close();
+                saveResultFile(file, lines);
             } else {
                 StringBuilder sb = new StringBuilder();
                 for (final String s : lines) {
@@ -106,10 +98,10 @@ public class LoadTestConfigurator {
                 return sb.toString();
             }
         } catch (final FileNotFoundException e) {
-            Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to found file: " + fileName);
+            Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to found file: " + testFileNameWithPath);
             e.printStackTrace();
         } catch (final IOException e) {
-            Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to access file: " + fileName);
+            Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to access file: " + testFileNameWithPath);
             e.printStackTrace();
         } catch (final Exception e) {
             e.printStackTrace();
@@ -149,9 +141,9 @@ public class LoadTestConfigurator {
             }
 
             if (newLine.contains(".exec(http(")) {
-                if (loadTestParameters.pausesEnabled()) {
-                    lines.add("\t\t.pause(" + loadTestParameters.getMinPause() + ", " +
-                            loadTestParameters.getMaxPause() + ")");
+                if (configurationParameters.pausesEnabled()) {
+                    lines.add("\t\t.pause(" + configurationParameters.getMinPause() + ", " +
+                            configurationParameters.getMaxPause() + ")");
                 }
             }
 
@@ -161,8 +153,8 @@ public class LoadTestConfigurator {
 
             if (newLine.contains("atOnceUsers")) {
                 newLine = newLine.replaceFirst("inject\\(atOnceUsers\\(1\\)\\)",
-                        "inject(rampUsers(" + loadTestParameters.getConcurrentUsers() + ") during (" +
-                                loadTestParameters.getRampUpTime() + " seconds))");
+                        "inject(rampUsers(" + configurationParameters.getConcurrentUsers() + ") during (" +
+                                configurationParameters.getRampUpTime() + " seconds))");
             }
 
             lines.add(newLine);
@@ -316,8 +308,10 @@ public class LoadTestConfigurator {
         if (requestFileName != null) {
             Logger.getLogger(LoadTestConfigurator.class.getName()).info(requestFileName);
 
+            String responseFilename = requestFileName.replaceFirst("request", "response");
             String requestBody = readRequestResponseFileContent(requestFileName);
-            String responseBody = readRequestResponseFileContent(requestFileName.replaceFirst("request", "response"));
+            String responseBody = readRequestResponseFileContent(responseFilename);
+            requestNamesAndBodies.put(requestFileName, requestBody);
 
             if (requestBody.contains("\"Vaadin-Security-Key\":")) {
                 uiInitRequestFileName = requestFileName;
@@ -329,6 +323,8 @@ public class LoadTestConfigurator {
             readConnectorMap(responseBody, requestFileName);
             if (!requestFileName.contains("response")) {
                 requestBody = doRequestBodyTreatments(requestBody);
+                responseNamesAndBodies.put(responseFilename, responseBody);
+                requestNamesAndBodiesProcessed.put(requestFileName, requestBody);
 
                 if (saveRequest) {
                     saveRequestFile(resourcesPath + (resourcesPath.charAt(resourcesPath.length() - 1) == '/' ? "" : "/") + requestFileName, requestBody);
@@ -380,11 +376,11 @@ public class LoadTestConfigurator {
         return null;
     }
 
-    private String readRequestResponseFileContent(final String fileName) {
+    public String readRequestResponseFileContent(final String fileName) {
         return readFileContent(resourcesPath + "/"+ fileName);
     }
 
-    String readFileContent(String filename) {
+    public String readFileContent(String filename) {
         String content = "";
         try (Scanner scanner = new Scanner(new File(filename))) {
             content = scanner.useDelimiter("\\Z").next();
@@ -484,5 +480,72 @@ public class LoadTestConfigurator {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public TreeMap<String, String> getRequestNamesAndBodies() {
+        return requestNamesAndBodies;
+    }
+
+    public TreeMap<String, String> getResponseNamesAndBodies() {
+        checkOtherResponses();
+        return responseNamesAndBodies;
+    }
+
+    private void checkOtherResponses() {
+        File folder = new File(resourcesPath);
+        File[] files = folder.listFiles();
+        for (File file : files) {
+            if (file.getName().endsWith("_response.txt") && !responseNamesAndBodies.containsKey(file.getName())) {
+                responseNamesAndBodies.put(file.getName(), readFileContent(file.getPath()));
+            }
+        }
+    }
+
+    public TreeMap<String, String> getRequestNamesAndBodiesProcessed() {
+        return requestNamesAndBodiesProcessed;
+    }
+
+    public void setProcessedRequestBody(String fileName, String fileContent) {
+        requestNamesAndBodiesProcessed.put(fileName, fileContent);
+    }
+
+    public void setProcessedScalaFilesContent(String processedScalaFilesContent) {
+        this.processedScalaFilesContent = processedScalaFilesContent;
+    }
+
+    public void saveProject() throws IOException {
+        saveResultFile(new File(testFileNameWithPath), processedScalaFilesContent);
+        requestNamesAndBodiesProcessed.forEach((fileName, fileContent) -> {
+            try {
+                saveRequestFile(resourcesPath+"/"+fileName, fileContent);
+            } catch (IOException e) {
+                // TODO
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void saveResultFile(File file, List<String> lines) throws IOException {
+        final FileWriter fw = new FileWriter(file);
+        final BufferedWriter bw = new BufferedWriter(fw);
+        for (final String s : lines) {
+            bw.write(s + "\n");
+        }
+
+        bw.flush();
+        bw.close();
+    }
+
+    private void saveResultFile(File file, String fileContent) throws IOException {
+        final FileWriter fw = new FileWriter(file);
+        final BufferedWriter bw = new BufferedWriter(fw);
+        bw.write(fileContent);
+
+        bw.flush();
+        bw.close();
+    }
+
+    public String getTestFileNameWithPath() {
+        return testFileNameWithPath;
     }
 }

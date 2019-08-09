@@ -1,9 +1,5 @@
 package org.vaadin.johannest.loadtestdriver;
 
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -13,7 +9,7 @@ public class LoadTestConfiguratorTest {
 
     @Before
     public void setup() {
-        LoadTestParameters parameters = new LoadTestParameters(10, 5, 2, -1, -1);
+        ConfigurationParameters parameters = new ConfigurationParameters(10, 5, 2, -1, -1);
         configurator = new LoadTestConfigurator(parameters);
         configurator.setTempFilePath("src/test/resources");
         configurator.setResourcesPath("src/test/resources");
@@ -36,7 +32,7 @@ public class LoadTestConfiguratorTest {
 
     @Test
     public void configureTestFile_tryEndToEndConfiguring_verifyResults() {
-        LoadTestParameters parameters = new LoadTestParameters(1, 1, 1, 1, 5);
+        ConfigurationParameters parameters = new ConfigurationParameters(1, 1, 1, 1, 5);
         configurator = new LoadTestConfigurator(parameters);
         configurator.setTempFilePath("src/test/resources");
         configurator.setResourcesPath("src/test/resources/resources");
