@@ -15,7 +15,7 @@ Vaadin 14
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
-	<version>0.3.3</version>
+	<version>0.3.4</version>
 </dependency> 
 ```
 
