@@ -23,6 +23,8 @@ public class LoadTestDriverBuilder {
     private int maxPause=-1;
     private boolean headlessEnabled;
 
+    private String browserLanguageCode;
+
     public LoadTestDriverBuilder() {
         ipaddress = "127.0.0.1";
     }
@@ -165,6 +167,16 @@ public class LoadTestDriverBuilder {
         return this;
     }
 
+    /**
+     * Use given language code (e.g. es or de) for Chrome
+     *
+     * @return LoadTestDriverBuilder
+     */
+    public LoadTestDriverBuilder withBrowserLanguageCode(String browserLanguageCode) {
+        this.browserLanguageCode = browserLanguageCode;
+        return this;
+    }
+
     public LoadTestDriver build() {
         Proxy proxy = new Proxy();
         proxy.setHttpProxy(ipaddress+":"+proxyPort);
@@ -172,6 +184,9 @@ public class LoadTestDriverBuilder {
         ChromeOptions options = new ChromeOptions();
         options.setCapability("proxy", proxy);
         options.addArguments("--disable-gpu");
+        if (browserLanguageCode!=null && !browserLanguageCode.isEmpty()) {
+            options.addArguments("--lang=" + browserLanguageCode);
+        }
         options.setHeadless(headlessEnabled);
 
         ConfigurationParameters configurationParameters = new ConfigurationParameters(concurrentUsers, rampUpTime, repeats,
