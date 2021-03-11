@@ -279,7 +279,7 @@ public class LoadTestConfigurator {
                 lines.add("\t\t\t\t)");
                 lines.add("\t\t\t}");
 
-            } catch (NumberFormatException | IndexOutOfBoundsException e) {
+            } catch (NumberFormatException | IndexOutOfBoundsException | NullPointerException e) {
                 Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse maxTry parameters: "+newLine);
             }
         }
@@ -814,7 +814,7 @@ public class LoadTestConfigurator {
     void readConnectorMap(String responseFileContent, String filename) {
         String responseJson = "";
         boolean htmlRequest = false;
-        if (!responseFileContent.startsWith("<!doctype html>")) {
+        if (isCorrectFileType(responseFileContent, filename)) {
             try {
                 responseJson = responseFileContent.trim().replace("for(;;);", "");
                 if (responseJson.substring(0, 10).contains("|")) {
@@ -846,6 +846,7 @@ public class LoadTestConfigurator {
                 if (responseJson.startsWith("[")) {
                     responseJson = responseJson.substring(1, responseJson.length() - 1);
                 }
+                responseJson = removeJavaScriptExecutions(responseJson);
                 JsonObject jsonObject = Json.parse(responseJson);
                 if (!jsonObject.hasKey("state") && jsonObject.hasKey("uidl")) {
                     jsonObject = jsonObject.getObject("uidl");
@@ -980,6 +981,20 @@ public class LoadTestConfigurator {
                 }
             }
         }
+    }
+
+    private String removeJavaScriptExecutions(String responseJson) {
+        Pattern pattern = Pattern.compile(",\\s?\"rpc\"\\s?:\\s?\\[\\[.{50,100}executeJavaScript");
+        Matcher matcher = pattern.matcher(responseJson);
+        while (matcher.find()) {
+            int startIndex = matcher.start();
+            return responseJson.substring(0, startIndex)+"}";
+        }
+        return responseJson;
+    }
+
+    private boolean isCorrectFileType(String responseFileContent, String filename) {
+        return filename.contains("_response.txt") && responseFileContent!=null && !responseFileContent.isEmpty() && !responseFileContent.startsWith("<!doctype html>") && !responseFileContent.startsWith("<?xml") && !responseFileContent.startsWith("<svg") && !responseFileContent.startsWith("<!DOCTYPE svg");
     }
 
     Map<String, String> getConnectorIdToMatchingPropertyKeyMap() {
