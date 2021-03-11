@@ -10,11 +10,21 @@ Probably the easiest way to quickly record a scalability/load test for a Vaadin 
 Workflow
 ========
 ### Add dependency to your pom.xml
+Vaadin 14
 ```
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
-	<version>0.2.3</version>
+	<version>0.3.3</version>
+</dependency> 
+```
+
+Vaadin 8
+```
+<dependency>
+	<groupId>org.vaadin.johannest</groupId>
+	<artifactId>loadtestdriver</artifactId>
+	<version>0.2.11</version>
 </dependency> 
 ```
 
@@ -30,7 +40,6 @@ public void setUp() throws Exception {
     				withPath("C:\\dev\\gatling8").
     				withResourcesPath("C:\\dev\\gatling8\\resources").
     				withStaticResourcesIngnoring().
-    				withHeadlessEnabled(true).
     				withTestRefactoring().
     				build();
     		setDriver(loadTestDriver);
@@ -51,3 +60,6 @@ private void openTestUrl() {
 
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
+
+### Example V14 project using the add-on
+https://github.com/johannest/v14loadtestdriverdemo
