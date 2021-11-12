@@ -61,3 +61,12 @@ private void openTestUrl() {
 
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
+
+LoadTest CLI
+============
+
+### Workflow
+
+1. Run `mvn clean package spring-boot:repackage` to create an executable jar file from the project.
+2. Now you can run the CLI. For example `java -jar .\target\loadtestdriver-0.3.4.jar -f .\test_scripts\LoginTest.scala -r .\test_scripts\resources`
+

@@ -1,7 +1,10 @@
 Manifest-Version: 1.0
 Vaadin-Package-Version: 1
+Built-By: Johannes Tuikkala
 Vaadin-Addon: ${Vaadin-Addon}
 Vaadin-License-Title: ${Vaadin-License-Title}
 Implementation-Vendor: ${Implementation-Vendor}
 Implementation-Title: ${Implementation-Title}
 Implementation-Version: ${Implementation-Version}
+Vaadin-Package-Version: 1
+Main-Class: org.vaadin.johannest.loadtestdriver.CommandLineRunner
