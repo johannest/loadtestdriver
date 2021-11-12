@@ -1,5 +1,6 @@
 package org.vaadin.johannest.loadtestdriver;
 
+import com.google.common.base.Strings;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "prepare", version = "LoadTestTool 0.1", mixinStandardHelpOptions = true, subcommands = { CommandLineRunner.Recorder.class })
@@ -78,19 +79,42 @@ public class CommandLineRunner implements Runnable {
     @CommandLine.Command(name = "record", description = "Starts Gatling Recorder with preferred settings")
     public static class Recorder implements Runnable {
 
+        @CommandLine.Option(names = { "-d", "--directory" },  description = "Directory path where to save recorded files")
+        String folderPath = null;
+
+        @CommandLine.Option(names = { "-n", "--name" },  description = "Test's name")
+        String name = null;
+
+        @CommandLine.Option(names = { "-p", "--port" },  description = "Proxy port")
+        private Integer proxyPort;
+
         @Override
         public void run() {
-            String gatlingHome = System.getenv("GATLING_HOME");
-            if (gatlingHome == null) {
-                gatlingHome = System.getProperty("java.io.tmpdir");
-                System.out.println("Using temp directory for recorded files: "+gatlingHome);
+            if (!Strings.isNullOrEmpty(folderPath)) {
+                System.out.println("Using given directory for recorded files: "+folderPath);
             } else {
-                System.out.println("Using GATLING_HOME directory for recorded files: "+gatlingHome);
+                folderPath = System.getenv("GATLING_HOME");
+                if (folderPath == null) {
+                    folderPath = System.getProperty("java.io.tmpdir");
+                    System.out.println("Using temp directory for recorded files: " + folderPath);
+                } else {
+                    System.out.println("Using GATLING_HOME directory for recorded files: " + folderPath);
+                }
             }
-            RecordingParameters params = new RecordingParameters();
-            params.setResourcesPath(gatlingHome);
-            LoadTestsRecorder recorder = new LoadTestsRecorder(params);
+            if (Strings.isNullOrEmpty(name)) {
+                name = "Test"+(int)(1000000*Math.random());
+                System.out.println("Using random name for the test file: "+name);
+            }
+            if (proxyPort==null) {
+                proxyPort = 8888;
+                System.out.println("Using default proxy port 8888");
+            }
+            LoadTestsRecorder recorder = new LoadTestsRecorder(new RecordingParameters(proxyPort, null, folderPath, folderPath, name,true, false));
             recorder.start();
+
+            while (true) {
+                // just wait until the app closes
+            }
         }
     }
 }

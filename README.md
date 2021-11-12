@@ -67,6 +67,11 @@ LoadTestDriver uses Gatling to record the load test with parameters given in Dri
 
 ### Workflow
 
-1. Run `mvn clean package spring-boot:repackage` to create an executable jar file from the project.
-2. Now you can run the CLI. For example `java -jar .\target\loadtestdriver-0.3.4.jar -f .\test_scripts\LoginTest.scala -r .\test_scripts\resources`
+Build CLI with the following command `mvn clean package spring-boot:repackage` This will create an executable jar file from the project.
 
+To run the CLI you can use `java -jar` for example `java -jar .\target\loadtestdriver-0.3.4.jar -f .\test_scripts\LoginTest.scala -r .\test_scripts\resources`
+
+To see all possible command line options run `java -jar .\target\loadtestdriver-0.3.4.jar --help`
+
+### Recorder
+LoadTest CLI can be used also to quickly start Gatling recorder with the preferred recording parameters. Run `java -jar .\target\loadtestdriver-0.3.4.jar record --help` to see possible command line options.
