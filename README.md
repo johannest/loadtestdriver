@@ -4,7 +4,9 @@
 LoadTestDriver
 ==============
 WebDriver for recording a Gatling load test, from an existing TestBench test.
-Probably the easiest way to quickly record a scalability/load test for a Vaadin web application
+Probably the easiest way to quickly record a scalability/load test for a Vaadin web application.
+
+It has also a [CLI](#LoadTest-CLI) version for preparing pre-recorder Gatling Scala test scrips.
 
 Note
 ====
@@ -13,8 +15,7 @@ This is the README of Vaadin 10+ version. See master branch for Vaadin 7 version
 Test refecatoring feature does not yet work for this version!
 
 
-Workflow
-========
+## Workflow
 ### Install latest ChromeDriver to your computer: 
 
 http://chromedriver.chromium.org
@@ -62,8 +63,7 @@ private void openTestUrl() {
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
 
-LoadTest CLI
-============
+##LoadTest CLI
 
 ### Workflow
 
