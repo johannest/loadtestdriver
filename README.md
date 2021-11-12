@@ -63,7 +63,7 @@ private void openTestUrl() {
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
 
-##LoadTest CLI
+## LoadTest CLI
 
 ### Workflow
 
