@@ -47,8 +47,13 @@ public class LoadTestsRecorder {
 
     private RecorderPropertiesBuilder buildRecorderProperties() {
         final RecorderPropertiesBuilder props = new RecorderPropertiesBuilder();
-        props.mode(RecorderMode.apply("Proxy"));
-        props.localPort(recordingParameters.getProxyPort());
+        if (recordingParameters.hasHarFile()) {
+            props.mode(RecorderMode.apply("Har"));
+            props.harFilePath(recordingParameters.getHarFileName());
+        } else {
+            props.mode(RecorderMode.apply("Proxy"));
+            props.localPort(recordingParameters.getProxyPort());
+        }
         props.simulationClassName(recordingParameters.getTestName());
         props.simulationsFolder(recordingParameters.getSimulationFilePath());
         props.resourcesFolder(recordingParameters.getResourcesPath());

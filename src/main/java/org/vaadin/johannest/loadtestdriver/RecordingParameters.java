@@ -14,6 +14,7 @@ public class RecordingParameters {
     private String simulationFilePath;
     private String resourcesPath;
     private String testName;
+    private String harFileName;
 
     boolean ignoreStatics;
     boolean headlessEnabled;
@@ -23,14 +24,36 @@ public class RecordingParameters {
         simulationFilePath = System.getProperty("java.io.tmpdir") + "gatling";
     }
 
+
+    public RecordingParameters(String simulationFilePath, String resourcesPath, String testName, String harFileName) {
+        this();
+        this.harFileName = harFileName;
+        this.testName = testName;
+        this.simulationFilePath = simulationFilePath;
+        this.resourcesPath = resourcesPath;
+
+        if (Strings.isNullOrEmpty(simulationFilePath)) {
+            setSimulationFileToTempDirectory();
+        } else {
+            this.simulationFilePath = removeLastSlashIfNeeded(simulationFilePath);
+        }
+        if (Strings.isNullOrEmpty(resourcesPath)) {
+            this.resourcesPath = this.simulationFilePath;
+        } else {
+            this.resourcesPath = removeLastSlashIfNeeded(resourcesPath);
+        }
+        if (Strings.isNullOrEmpty(testName)) {
+            this.testName = randomName();
+        } else {
+            this.testName = testName;
+        }
+    }
+
     public RecordingParameters(int proxyPort, String proxyHost, String simulationFilePath, String resourcesPath, String testName) {
         this();
         this.proxyPort = proxyPort;
         this.proxyHost = proxyHost;
-        this.simulationFilePath = simulationFilePath;
-        this.resourcesPath = resourcesPath;
         this.testName = testName;
-
         this.simulationFilePath = simulationFilePath;
         this.resourcesPath = resourcesPath;
 
@@ -132,5 +155,17 @@ public class RecordingParameters {
 
     public String[] getStaticPatterns() {
         return staticPatterns;
+    }
+
+    public String getHarFileName() {
+        return harFileName;
+    }
+
+    public boolean hasHarFile() {
+        return harFileName!=null;
+    }
+
+    public void setHarFileName(String harFileName) {
+        this.harFileName = harFileName;
     }
 }

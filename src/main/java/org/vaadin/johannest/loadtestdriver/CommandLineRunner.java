@@ -85,8 +85,14 @@ public class CommandLineRunner implements Runnable {
         @CommandLine.Option(names = { "-n", "--name" },  description = "Test's name")
         String name = null;
 
+        @CommandLine.Option(names = { "-h", "--har-file" },  description = "Import HAR file instead of recording")
+        String harFileName = null;
+
         @CommandLine.Option(names = { "-p", "--port" },  description = "Proxy port")
         private Integer proxyPort;
+
+        @CommandLine.Option(names = { "-l", "--headless" },  description = "Headless mode")
+        private boolean headless = false;
 
         @Override
         public void run() {
@@ -109,11 +115,18 @@ public class CommandLineRunner implements Runnable {
                 proxyPort = 8888;
                 System.out.println("Using default proxy port 8888");
             }
-            LoadTestsRecorder recorder = new LoadTestsRecorder(new RecordingParameters(proxyPort, null, folderPath, folderPath, name,true, false));
-            recorder.start();
+            RecordingParameters recordingParameters = new RecordingParameters(proxyPort, null, folderPath, folderPath, name,true, false);
+            if (!Strings.isNullOrEmpty(harFileName)) {
+                recordingParameters.setHarFileName(harFileName);
+            }
+            recordingParameters.setHeadlessEnabled(headless);
+            LoadTestsRecorder recorder = new LoadTestsRecorder(recordingParameters);
 
-            while (true) {
-                // just wait until the app closes
+            if (!headless) {
+                recorder.start();
+                while (true) {
+                    // just wait until the GUI closes
+                }
             }
         }
     }
