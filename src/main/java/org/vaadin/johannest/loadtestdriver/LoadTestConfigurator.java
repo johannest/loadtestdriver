@@ -25,6 +25,10 @@ public class LoadTestConfigurator {
 
     private final Map<String, String> nodeIdToCssIdMap = new HashMap<>();
     private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
+    private final Map<String, String> nodeIdToTextMap = new HashMap<>();
+    private final Map<String, String> nodeIdToAddMap = new HashMap<>();
+    private final Map<String, String> nodeIdToTagMap = new HashMap<>();
+    private final Map<String, String> nodeIdToThemeMap = new HashMap<>();
 
     private final Map<String, List<String>> nodeIdToRequestFileNames = new HashMap<>();
     private final Set<String> requiredConnectorIds = new HashSet<>();
@@ -259,7 +263,10 @@ public class LoadTestConfigurator {
     String createExtractorRegex(String requiredConnectorId) {
         final String propertyValueCss = nodeIdToCssIdMap.get(requiredConnectorId);
         final String propertyValueLabel = nodeIdToLabelMap.get(requiredConnectorId);
-
+        final String propertyValueText = nodeIdToTextMap.get(requiredConnectorId);
+        final String propertyValueTheme = nodeIdToThemeMap.get(requiredConnectorId);
+        final String propertyValueAdd = nodeIdToAddMap.get(requiredConnectorId);
+        final String propertyValueTag = nodeIdToTagMap.get(requiredConnectorId);
         if (propertyValueCss!=null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
@@ -270,7 +277,28 @@ public class LoadTestConfigurator {
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
             return regexExtractor;
+        }  else if (propertyValueText!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_text");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
+        } else if (propertyValueTheme!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
+        } else if (propertyValueAdd!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_add");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
+        } else if (propertyValueTag!=null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_tag");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
         }
+
         return null;
     }
 
@@ -437,29 +465,18 @@ public class LoadTestConfigurator {
                 }
                 final JsonArray changesArray = jsonObject.getArray("changes");
                 if (changesArray!=null) {
+                    JsonObject prevNode = null;
                     for (int i = 0; i < changesArray.length(); i++) {
                         JsonObject node = changesArray.get(i);
                         String nodeId = node.get("node").asString();
 
-                        if (node.hasKey("key") && node.getString("key").equals("payload")) {
-                            // {"node":44,"type":"put","key":"payload","feat":0,"value":{"type":"@id","payload":"sendComment"}}
-                            JsonObject payload = node.get("value");
-                            if ("@id".equals(payload.getString("type"))) {
-                                String cssId = payload.getString("payload");
-                                nodeIdToCssIdMap.put(nodeId, cssId);
-                                nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-                                nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
-                            }
-                        }
-                        if (node.hasKey("key") && node.getString("key").equals("label")) {
-                            // {"node":39,"type":"put","key":"label","feat":1,"value":"Category"}
-                            JsonString labelValue = node.get("value");
-                            if (!Strings.isNullOrEmpty(labelValue.getString())) {
-                                nodeIdToLabelMap.put(nodeId, labelValue.getString());
-                                nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-                                nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
-                            }
-                        }
+                        extractCssIdNode(requestFilename, node, nodeId);
+                        extractLabelNode(requestFilename, node, nodeId);
+                        extractTextNode(requestFilename, node, prevNode, nodeId);
+                        extractAddNode(requestFilename, node, nodeId);
+                        extractTagNode(requestFilename, node, nodeId);
+                        extractThemeNode(requestFilename, node, nodeId);
+                        prevNode = node;
                     }
                 }
             }
@@ -470,6 +487,83 @@ public class LoadTestConfigurator {
             Logger.getLogger(LoadTestConfigurator.class.getName()).severe(responseJson);
             Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse response json " + responseJson);
         }
+    }
+
+    private void extractCssIdNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("payload")) {
+            // {"node":44,"type":"put","key":"payload","feat":0,"value":{"type":"@id","payload":"sendComment"}}
+            JsonObject payload = node.get("value");
+            if ("@id".equals(payload.getString("type"))) {
+                String cssId = payload.getString("payload");
+                nodeIdToCssIdMap.put(nodeId, cssId);
+                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractLabelNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("label")) {
+            // {"node":39,"type":"put","key":"label","feat":1,"value":"Category"}
+            JsonString labelValue = node.get("value");
+            if (!Strings.isNullOrEmpty(labelValue.getString())) {
+                nodeIdToLabelMap.put(nodeId, labelValue.getString());
+                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractTextNode(String requestFilename, JsonObject currNode, JsonObject prevNode, String nodeId) {
+        if (prevNode.hasKey("key") && prevNode.getString("key").equals("text") &&
+            currNode.hasKey("type") && currNode.getString("type").equals("attach")) {
+            // {"node":33,"type":"put","key":"text","feat":7,"value":"Fiction"}
+            // {"node":34,"type":"attach"},
+            JsonString tagValue = prevNode.get("value");
+            if (!Strings.isNullOrEmpty(tagValue.getString())) {
+                nodeIdToTextMap.put(nodeId, tagValue.getString());
+                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractAddNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("splice") && node.hasKey("add")) {
+            // {"node":62,"type":"splice","feat":19,"index":0,"add":["sortersChanged","select",..
+            JsonArray addValues = node.get("add");
+            if (addValues.length()>0) {
+                String addValue = addValues.getString(0);
+                if (!Strings.isNullOrEmpty(addValue)) {
+                    nodeIdToAddMap.put(nodeId, addValue);
+                    stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                }
+            }
+        }
+    }
+
+    private void extractTagNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("tag")) {
+            // {"node":62,"type":"put","key":"tag","feat":0,"value":"vaadin-grid"}
+            JsonString tagValue = node.get("value");
+            if (!Strings.isNullOrEmpty(tagValue.getString())) {
+                nodeIdToTagMap.put(nodeId, tagValue.getString());
+                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractThemeNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("theme")) {
+            // {"node":65,"type":"put","key":"theme","feat":3,"value":"primary"},
+            JsonString tagValue = node.get("value");
+            if (!Strings.isNullOrEmpty(tagValue.getString())) {
+                nodeIdToThemeMap.put(nodeId, tagValue.getString());
+                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void stroreNodeIdToFileNamesMap(String requestFilename, String nodeId) {
+        nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+        nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
     }
 
     private void loadPropertiesFile() {

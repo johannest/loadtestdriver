@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.3.4</version>
+	<version>0.4.0</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
@@ -14,7 +14,9 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 
 		<gatling.version>3.0.3</gatling.version>
-		<vaadin.version>14.7.3</vaadin.version>
+		<gatling-plugin.version>3.0.3</gatling-plugin.version>
+		<scala-maven-plugin.version>3.4.4</scala-maven-plugin.version>
+		<vaadin.version>14.7.5</vaadin.version>
 
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -307,6 +309,50 @@
 					<url>http://maven.vaadin.com/vaadin-prereleases</url>
 				</pluginRepository>
 			</pluginRepositories>
+		</profile>
+
+		<profile>
+			<!-- For running Gatling tests -->
+			<id>scalability</id>
+			<activation>
+				<property>
+					<name>scalability</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>io.netty</groupId>
+					<artifactId>netty-transport</artifactId>
+					<version>4.1.25.Final</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>io.gatling.highcharts</groupId>
+					<artifactId>gatling-charts-highcharts</artifactId>
+					<version>${gatling.version}</version>
+					<scope>test</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>io.netty</groupId>
+							<artifactId>netty-transport</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<version>${scala-maven-plugin.version}</version>
+					</plugin>
+					<plugin>
+						<groupId>io.gatling</groupId>
+						<artifactId>gatling-maven-plugin</artifactId>
+						<version>${gatling-plugin.version}</version>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 

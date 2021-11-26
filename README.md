@@ -75,3 +75,14 @@ To see all possible command line options run `java -jar .\target\loadtestdriver-
 
 ### Recorder
 LoadTest CLI can be used also to quickly start Gatling recorder with the preferred recording parameters. Run `java -jar .\target\loadtestdriver-0.3.4.jar record --help` to see possible command line options.
+
+### Quick start guide with Vaadin BookStore demo application
+1. Open Firefox and its developer tools (F12).
+2. Select Network tab and click "Disable cache".
+3. From the cog symbol select "Persist log".
+4. Paste demo app's URL (https://vaadin-bookstore-example.demo.vaadin.com/) to URL bar.
+5. Login to app and do other UI interactions if wanted.
+6. When ready, select "Save All As HAR" from the cog symbol (save as `vaadin_bookstore.har` under `loadtestdriver\test_scripts`)
+7. Run `java -jar .\target\loadtestdriver-0.3.4.jar record -hf .\src\test\resources\vaadin_bookstore.har -d .\src\test\scala\ -r .\src\test\resources` to generate Gatling test script in headless mode from a HAR file.
+8. Run `java -jar .\target\loadtestdriver-0.3.4.jar -f .\test_scripts\vaadin_bookstore.scala` to convert the test script to Vaadin compatible format.
+9. Run `mvn -Pscalability gatling:test` to compile and run the test script with Gatling. 

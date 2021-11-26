@@ -1,0 +1,1 @@
+{"csrfToken":"54c6f8e6-efa6-47cd-8985-b9c09f821008","rpc":[{"type":"event","node":98,"event":"opened-changed"},{"type":"publishedEventHandler","node":62,"templateEventMethodName":"setDetailsVisible","templateEventMethodArgs":[null],"promise":3}],"syncId":9,"clientId":9}

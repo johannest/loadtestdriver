@@ -1,0 +1,1 @@
+{"csrfToken":"54c6f8e6-efa6-47cd-8985-b9c09f821008","rpc":[{"type":"event","node":4,"event":"login","data":{"event.detail.username":"admin","event.detail.password":"admin"}},{"type":"mSync","node":4,"feature":1,"property":"disabled","value":true}],"syncId":1,"clientId":1}

@@ -7,8 +7,14 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
+import com.google.common.base.Strings;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import io.gatling.app.Gatling;
@@ -36,13 +42,22 @@ public class LoadTestRunner {
         Logger.getLogger(LoadTestsRecorder.class.getName()).info("Compiling test file");
         try {
             final String classpath = System.getProperty("java.class.path");
+            String compilerClasspath = System.getenv("GATLING_HOME");
+            if (Strings.isNullOrEmpty(compilerClasspath)) {
+                System.out.println("GATLING_HOME not found, using compilation class path: [classpath]/lib/*");
+                compilerClasspath = classpath;
+            }
+            if (compilerClasspath.contains("\\")) {
+                compilerClasspath += "\\lib\\*";
+            } else {
+                compilerClasspath += "/lib/*";
+            }
 
             final StringBuilder cmd = new StringBuilder();
             cmd.append("java -XX:+UseThreadPriorities -XX:ThreadPriorityPolicy=42 ");
             cmd.append("-Xms512M -Xmx512M -Xmn100M -Xss10M ");
-            cmd.append("-cp " + classpath);
+            cmd.append("-cp " + compilerClasspath);
             cmd.append(" io.gatling.compiler.ZincCompiler ");
-            cmd.append("-ccp " + classpath);
             cmd.append(" -sf ");
             cmd.append(recordingParameters.getSimulationFilePath());
             cmd.append(" -bf ");
