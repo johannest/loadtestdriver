@@ -30,8 +30,9 @@ public class LoadTestConfigurator {
     private final Map<String, String> nodeIdToTagMap = new HashMap<>();
     private final Map<String, String> nodeIdToThemeMap = new HashMap<>();
 
-    private final Map<String, List<String>> nodeIdToRequestFileNames = new HashMap<>();
-    private final Set<String> requiredConnectorIds = new HashSet<>();
+    private final Map<String, List<String>> nodeIdToResponseFileNames = new HashMap<>();
+    private final Map<String, List<String>> nodeIdToRequiredInRequestFileNames = new HashMap<>();
+    private final Set<String> requiredNodeIds = new HashSet<>();
 
     private TreeMap<String, String> requestNamesAndBodies = new TreeMap<>();
     private TreeMap<String, String> responseNamesAndBodies = new TreeMap<>();
@@ -44,7 +45,7 @@ public class LoadTestConfigurator {
 
     private Properties props;
     private List<String> lines;
-    private List<String> connectorIdExtractors;
+    private List<String> nodeIdExtractors;
 
     private Integer uidlHeadersNo;
 
@@ -82,7 +83,7 @@ public class LoadTestConfigurator {
             final BufferedReader br = new BufferedReader(fr);
 
             lines = new ArrayList<>();
-            connectorIdExtractors = new ArrayList<>();
+            nodeIdExtractors = new ArrayList<>();
 
             readScalaScriptAndDoInitialRefactoring(br, saveResults);
 
@@ -115,7 +116,7 @@ public class LoadTestConfigurator {
 
     private void removePossibleBodyByteCheck() {
         List<String> newLines = new ArrayList<>();
-        for (int i=0; i<lines.size(); i++) {
+        for (int i = 0; i < lines.size(); i++) {
             String aline = lines.get(i);
             if (aline.contains(".check(bodyBytes.is(")) {
                 newLines.add("\t\t\t)");
@@ -167,12 +168,12 @@ public class LoadTestConfigurator {
     }
 
     private void extractUidlHeaderNumber(String newLine, String previousLine) {
-        if (uidlHeadersNo==null && newLine.contains("headers(headers_") && previousLine!=null && previousLine.contains("UIDL/?v-uiId=")) {
+        if (uidlHeadersNo == null && newLine.contains("headers(headers_") && previousLine != null && previousLine.contains("UIDL/?v-uiId=")) {
             try {
                 String[] s = newLine.split("_");
-                uidlHeadersNo = Integer.parseInt(s[1].substring(0, s[1].length()-1));
+                uidlHeadersNo = Integer.parseInt(s[1].substring(0, s[1].length() - 1));
             } catch (NumberFormatException | IndexOutOfBoundsException e) {
-                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse headers no: "+newLine+" using the default value 2");
+                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse headers no: " + newLine + " using the default value 2");
                 uidlHeadersNo = 2;
             }
         }
@@ -183,22 +184,23 @@ public class LoadTestConfigurator {
             final String aline = lines.get(i);
 
             if (aline.contains(".post(") && aline.contains("?v-r=uidl&v-uiId=")) {
-               lines.add(i + 2, "\t\t\t.check(syncIdExtract).check(clientIdExtract)");
+                lines.add(i + 2, "\t\t\t.check(syncIdExtract).check(clientIdExtract)");
             }
-            for (Map.Entry<String, List<String>> entry : nodeIdToRequestFileNames.entrySet()) {
+            for (Map.Entry<String, List<String>> entry : nodeIdToResponseFileNames.entrySet()) {
                 List<String> fileNamesList = entry.getValue();
                 if (containsStringInAListOfStrings(aline, fileNamesList) ||
                         (uiInitRequestFileName != null && aline.contains("check(xsrfTokenExtract)") &&
                                 containsStringInAListOfStrings(uiInitRequestFileName, fileNamesList))) {
-                    String requiredConnectorId = entry.getKey();
-
-                    if (requiredConnectorIds.contains(requiredConnectorId)) {
-                        String regexExtractor = createExtractorRegex(requiredConnectorId);
-                        if (!connectorIdExtractors.contains(regexExtractor)) {
+                    String requiredNodeId = entry.getKey();
+                    List<String> requiredInRequests = nodeIdToRequiredInRequestFileNames.get(requiredNodeId);
+                    // FIXME
+                    if (requiredNodeIds.contains(requiredNodeId)) {
+                        String regexExtractor = createExtractorRegex(requiredNodeId);
+                        if (!nodeIdExtractors.contains(regexExtractor)) {
                             regexExtractor = escapeCurlyBraces(regexExtractor);
                             // no need to add duplicate extractor
-                            connectorIdExtractors.add(regexExtractor);
-                            lines.add(i, "\t\t\t.check(extract_" + requiredConnectorId + "_Id)");
+                            nodeIdExtractors.add(regexExtractor);
+                            lines.add(i, "\t\t\t.check(extract_" + requiredNodeId + "_Id)");
                             ++i;
                         }
                     }
@@ -211,7 +213,7 @@ public class LoadTestConfigurator {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
             if (aline.contains("val scn = scenario")) {
-                for (String extractor : connectorIdExtractors) {
+                for (String extractor : nodeIdExtractors) {
                     lines.add(i - 1, extractor);
                 }
                 lines.add(i - 1, "\n");
@@ -267,35 +269,35 @@ public class LoadTestConfigurator {
         final String propertyValueTheme = nodeIdToThemeMap.get(requiredConnectorId);
         final String propertyValueAdd = nodeIdToAddMap.get(requiredConnectorId);
         final String propertyValueTag = nodeIdToTagMap.get(requiredConnectorId);
-        if (propertyValueCss!=null) {
+        if (propertyValueCss != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueCss));
             return regexExtractor;
-        } else if (propertyValueLabel!=null) {
+        } else if (propertyValueLabel != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
             return regexExtractor;
-        }  else if (propertyValueText!=null) {
+        } else if (propertyValueText != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_text");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueText));
             return regexExtractor;
-        } else if (propertyValueTheme!=null) {
+        } else if (propertyValueTheme != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTheme));
             return regexExtractor;
-        } else if (propertyValueAdd!=null) {
+        } else if (propertyValueAdd != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_add");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueAdd));
             return regexExtractor;
-        } else if (propertyValueTag!=null) {
+        } else if (propertyValueTag != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_tag");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTag));
             return regexExtractor;
         }
 
@@ -303,10 +305,10 @@ public class LoadTestConfigurator {
     }
 
     private String escapePropertyValue(String propertyValue) {
-        char[] specialChars = new char[]{'\\','.','[',']','{','}','(',')','*','+','-','?','^','$','|'};
+        char[] specialChars = new char[]{'\\', '.', '[', ']', '{', '}', '(', ')', '*', '+', '-', '?', '^', '$', '|'};
         String result = propertyValue;
         for (char specialChar : specialChars) {
-            result = result.replace(Character.toString(specialChar), "\\"+specialChar);
+            result = result.replace(Character.toString(specialChar), "\\" + specialChar);
         }
         return result;
     }
@@ -348,9 +350,10 @@ public class LoadTestConfigurator {
                 lines.add("\t\t\t.check(xsrfTokenExtract)");
             }
 
-            readConnectorMap(responseBody, requestFileName);
-            if (!requestFileName.contains("response")) {
-                requestBody = doRequestBodyTreatments(requestBody);
+            if (requestFileName.contains("response")) {
+                readConnectorMap(responseBody, requestFileName);
+            } else {
+                requestBody = doRequestBodyTreatments(requestFileName, requestBody);
                 responseNamesAndBodies.put(responseFilename, responseBody);
                 requestNamesAndBodiesProcessed.put(requestFileName, requestBody);
 
@@ -366,26 +369,35 @@ public class LoadTestConfigurator {
         return newLine;
     }
 
-    String doRequestBodyTreatments(String requestBody) {
+    String doRequestBodyTreatments(String requestFileName, String requestBody) {
         String regex = "\"node\":([0-9]{1,5}),";
         Pattern p = Pattern.compile(regex);
         Matcher matcher = p.matcher(requestBody);
 
         while (matcher.find()) {
-            String connectorId = matcher.group(1);
+            String nodeId = matcher.group(1);
             int index = matcher.start();
-            if ((nodeIdToCssIdMap.get(connectorId)!=null || nodeIdToLabelMap.get(connectorId)!=null) && nodeIdToRequestFileNames.get(connectorId)!=null) {
-                String idName = "_" + connectorId + "_Id";
-                requestBody = requestBody.substring(0, index+7)+"${" + idName + "}"+requestBody.substring(index + connectorId.length()+7);
+            // checks whether node id would be available at all with supported regexp extractors
+            if ((nodeIdToCssIdMap.get(nodeId) != null ||
+                    nodeIdToLabelMap.get(nodeId) != null ||
+                    nodeIdToTextMap.get(nodeId) != null ||
+                    nodeIdToThemeMap.get(nodeId) != null ||
+                    nodeIdToAddMap.get(nodeId) != null ||
+                    nodeIdToTagMap.get(nodeId) != null) && nodeIdToResponseFileNames.get(nodeId) != null) {
+                String idName = "_" + nodeId + "_Id";
+                requestBody = requestBody.substring(0, index + 7) + "${" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
                 matcher = p.matcher(requestBody);
-                requiredConnectorIds.add(connectorId);
+                requiredNodeIds.add(nodeId);
+                if (requestFileName != null) {
+                    storeNodeIdToRequiredFileNamesMap(requestFileName, nodeId);
+                }
             }
         }
 
         requestBody = requestBody.replaceFirst("syncId\":[0-9]+", Matcher.quoteReplacement("syncId\":${syncId}"));
         requestBody = requestBody.replaceFirst("clientId\":[0-9]+", Matcher.quoteReplacement("clientId\":${clientId}"));
         requestBody = requestBody.replaceFirst("csrfToken\":\"[a-z0-9\\-]+\"", Matcher.quoteReplacement("csrfToken\":\"${seckey}\""));
-       return requestBody;
+        return requestBody;
     }
 
     private void saveRequestFile(String fileName, String requesBody) throws IOException {
@@ -405,7 +417,7 @@ public class LoadTestConfigurator {
     }
 
     public String readRequestResponseFileContent(final String fileName) {
-        return readFileContent(resourcesPath + "/"+ fileName);
+        return readFileContent(resourcesPath + "/" + fileName);
     }
 
     public String readFileContent(String filename) {
@@ -430,7 +442,7 @@ public class LoadTestConfigurator {
         lines.add("\n");
     }
 
-    void readConnectorMap(String responseFileContent, String requestFilename) {
+    void readConnectorMap(String responseFileContent, String responseFilename) {
         String responseJson = "";
         boolean htmlRequest = false;
         try {
@@ -440,14 +452,14 @@ public class LoadTestConfigurator {
                 responseJson = responseJson.substring(responseJson.indexOf("var uidl =") + 10);
                 responseJson = responseJson.substring(0, responseJson.indexOf("var config ="));
                 responseJson = responseJson.trim();
-                responseJson = responseJson.substring(0, responseJson.length()-1);
+                responseJson = responseJson.substring(0, responseJson.length() - 1);
                 // remove escaped quotes
-                responseJson = responseJson.replace("\\\"", "\"");
+                // responseJson = responseJson.replace("\\\"", "\"");
                 // remove inner htmls
                 int strartIndex = responseJson.indexOf(",\"key\":\"innerHTML\"");
                 while (strartIndex >= 0) {
                     int endIndex = responseJson.substring(strartIndex).indexOf("\"},{");
-                    String start = responseJson.substring(0, strartIndex-1);
+                    String start = responseJson.substring(0, strartIndex - 1);
                     String end = responseJson.substring(strartIndex + endIndex);
                     responseJson = start + end;
                     strartIndex = responseJson.indexOf(",\"key\":\"innerHTML\"");
@@ -464,18 +476,18 @@ public class LoadTestConfigurator {
                     jsonObject = Json.parse(responseJson);
                 }
                 final JsonArray changesArray = jsonObject.getArray("changes");
-                if (changesArray!=null) {
+                if (changesArray != null) {
                     JsonObject prevNode = null;
                     for (int i = 0; i < changesArray.length(); i++) {
                         JsonObject node = changesArray.get(i);
                         String nodeId = node.get("node").asString();
 
-                        extractCssIdNode(requestFilename, node, nodeId);
-                        extractLabelNode(requestFilename, node, nodeId);
-                        extractTextNode(requestFilename, node, prevNode, nodeId);
-                        extractAddNode(requestFilename, node, nodeId);
-                        extractTagNode(requestFilename, node, nodeId);
-                        extractThemeNode(requestFilename, node, nodeId);
+                        extractCssIdNode(responseFilename, node, nodeId);
+                        extractLabelNode(responseFilename, node, nodeId);
+                        extractTextNode(responseFilename, node, prevNode, nodeId);
+                        extractAddNode(responseFilename, node, nodeId);
+                        extractTagNode(responseFilename, node, nodeId);
+                        extractThemeNode(responseFilename, node, nodeId);
                         prevNode = node;
                     }
                 }
@@ -489,51 +501,52 @@ public class LoadTestConfigurator {
         }
     }
 
-    private void extractCssIdNode(String requestFilename, JsonObject node, String nodeId) {
+    private void extractCssIdNode(String responseFilename, JsonObject node, String nodeId) {
         if (node.hasKey("key") && node.getString("key").equals("payload")) {
             // {"node":44,"type":"put","key":"payload","feat":0,"value":{"type":"@id","payload":"sendComment"}}
             JsonObject payload = node.get("value");
             if ("@id".equals(payload.getString("type"))) {
                 String cssId = payload.getString("payload");
                 nodeIdToCssIdMap.put(nodeId, cssId);
-                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
             }
         }
     }
 
-    private void extractLabelNode(String requestFilename, JsonObject node, String nodeId) {
+    private void extractLabelNode(String responseFilename, JsonObject node, String nodeId) {
         if (node.hasKey("key") && node.getString("key").equals("label")) {
             // {"node":39,"type":"put","key":"label","feat":1,"value":"Category"}
             JsonString labelValue = node.get("value");
             if (!Strings.isNullOrEmpty(labelValue.getString())) {
                 nodeIdToLabelMap.put(nodeId, labelValue.getString());
-                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
             }
         }
     }
 
-    private void extractTextNode(String requestFilename, JsonObject currNode, JsonObject prevNode, String nodeId) {
-        if (prevNode.hasKey("key") && prevNode.getString("key").equals("text") &&
-            currNode.hasKey("type") && currNode.getString("type").equals("attach")) {
+    private void extractTextNode(String responseFilename, JsonObject currNode, JsonObject prevNode, String nodeId) {
+        if (prevNode != null &&
+                prevNode.hasKey("key") && prevNode.getString("key").equals("text") &&
+                currNode.hasKey("type") && currNode.getString("type").equals("attach")) {
             // {"node":33,"type":"put","key":"text","feat":7,"value":"Fiction"}
             // {"node":34,"type":"attach"},
             JsonString tagValue = prevNode.get("value");
             if (!Strings.isNullOrEmpty(tagValue.getString())) {
                 nodeIdToTextMap.put(nodeId, tagValue.getString());
-                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
             }
         }
     }
 
-    private void extractAddNode(String requestFilename, JsonObject node, String nodeId) {
+    private void extractAddNode(String responseFilename, JsonObject node, String nodeId) {
         if (node.hasKey("splice") && node.hasKey("add")) {
             // {"node":62,"type":"splice","feat":19,"index":0,"add":["sortersChanged","select",..
             JsonArray addValues = node.get("add");
-            if (addValues.length()>0) {
+            if (addValues.length() > 0) {
                 String addValue = addValues.getString(0);
                 if (!Strings.isNullOrEmpty(addValue)) {
                     nodeIdToAddMap.put(nodeId, addValue);
-                    stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                    stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
                 }
             }
         }
@@ -545,7 +558,7 @@ public class LoadTestConfigurator {
             JsonString tagValue = node.get("value");
             if (!Strings.isNullOrEmpty(tagValue.getString())) {
                 nodeIdToTagMap.put(nodeId, tagValue.getString());
-                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                stroreNodeIdToResponseFileNamesMap(requestFilename, nodeId);
             }
         }
     }
@@ -556,14 +569,25 @@ public class LoadTestConfigurator {
             JsonString tagValue = node.get("value");
             if (!Strings.isNullOrEmpty(tagValue.getString())) {
                 nodeIdToThemeMap.put(nodeId, tagValue.getString());
-                stroreNodeIdToFileNamesMap(requestFilename, nodeId);
+                stroreNodeIdToResponseFileNamesMap(requestFilename, nodeId);
             }
         }
     }
 
-    private void stroreNodeIdToFileNamesMap(String requestFilename, String nodeId) {
-        nodeIdToRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-        nodeIdToRequestFileNames.get(nodeId).add(requestFilename);
+    private void stroreNodeIdToResponseFileNamesMap(String requestFilename, String nodeId) {
+        nodeIdToResponseFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+        // TODO: consider refactoring now only using the latest response file
+        // Is earlier response file needed in some cases
+        // if yes, then futher changes are needed to make sure correct regexp is created in the correct place
+        if (nodeIdToResponseFileNames.get(nodeId).size()==1) {
+            nodeIdToResponseFileNames.get(nodeId).clear();
+        }
+        nodeIdToResponseFileNames.get(nodeId).add(requestFilename);
+    }
+
+    private void storeNodeIdToRequiredFileNamesMap(String requestFileName, String nodeId) {
+        nodeIdToRequiredInRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+        nodeIdToRequiredInRequestFileNames.get(nodeId).add(requestFileName);
     }
 
     private void loadPropertiesFile() {
@@ -611,7 +635,7 @@ public class LoadTestConfigurator {
         saveResultFile(new File(testFileNameWithPath), processedScalaFilesContent);
         requestNamesAndBodiesProcessed.forEach((fileName, fileContent) -> {
             try {
-                saveRequestFile(resourcesPath+"/"+fileName, fileContent);
+                saveRequestFile(resourcesPath + "/" + fileName, fileContent);
             } catch (IOException e) {
                 // TODO
                 e.printStackTrace();

@@ -26,7 +26,7 @@ public class LoadTestConfiguratorTest {
     public void doRequestBodyTreatments_withExampleRequestBodyAndConnectorMapping_connectorIdsAreReplacedRight() {
         String exampleResponseFileContent = configurator.readFileContent("src/test/resources/example_init.html");
         configurator.readConnectorMap(exampleResponseFileContent, "tmp");
-        String result = configurator.doRequestBodyTreatments(configurator.readFileContent("src/test/resources/resources/Bakery_AddOrder_0009_request.txt"));
+        String result = configurator.doRequestBodyTreatments(null, configurator.readFileContent("src/test/resources/resources/Bakery_AddOrder_0009_request.txt"));
         System.out.println(result);
     }
 
