@@ -12,12 +12,14 @@ import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Strings;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;
 import elemental.json.JsonString;
+import org.apache.commons.lang3.tuple.Pair;
 
 public class LoadTestConfigurator {
 
@@ -30,9 +32,8 @@ public class LoadTestConfigurator {
     private final Map<String, String> nodeIdToTagMap = new HashMap<>();
     private final Map<String, String> nodeIdToThemeMap = new HashMap<>();
 
-    private final Map<String, List<String>> nodeIdToResponseFileNames = new HashMap<>();
-    private final Map<String, List<String>> nodeIdToRequiredInRequestFileNames = new HashMap<>();
-    private final Set<String> requiredNodeIds = new HashSet<>();
+    private final Map<String, String> nodeIdToResponseFileName = new HashMap<>();
+    private final Map<Pair<String,String>, String> responseFilenameAndNodeIdToRegexpExtractor = new HashMap<>();
 
     private TreeMap<String, String> requestNamesAndBodies = new TreeMap<>();
     private TreeMap<String, String> responseNamesAndBodies = new TreeMap<>();
@@ -45,7 +46,6 @@ public class LoadTestConfigurator {
 
     private Properties props;
     private List<String> lines;
-    private List<String> nodeIdExtractors;
 
     private Integer uidlHeadersNo;
 
@@ -83,7 +83,6 @@ public class LoadTestConfigurator {
             final BufferedReader br = new BufferedReader(fr);
 
             lines = new ArrayList<>();
-            nodeIdExtractors = new ArrayList<>();
 
             readScalaScriptAndDoInitialRefactoring(br, saveResults);
 
@@ -182,27 +181,20 @@ public class LoadTestConfigurator {
     private void addRegexExtractChecks() {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
-
+            Set<String> usedChecks = new HashSet<>();
             if (aline.contains(".post(") && aline.contains("?v-r=uidl&v-uiId=")) {
                 lines.add(i + 2, "\t\t\t.check(syncIdExtract).check(clientIdExtract)");
             }
-            for (Map.Entry<String, List<String>> entry : nodeIdToResponseFileNames.entrySet()) {
-                List<String> fileNamesList = entry.getValue();
-                if (containsStringInAListOfStrings(aline, fileNamesList) ||
-                        (uiInitRequestFileName != null && aline.contains("check(xsrfTokenExtract)") &&
-                                containsStringInAListOfStrings(uiInitRequestFileName, fileNamesList))) {
-                    String requiredNodeId = entry.getKey();
-                    List<String> requiredInRequests = nodeIdToRequiredInRequestFileNames.get(requiredNodeId);
-                    // FIXME
-                    if (requiredNodeIds.contains(requiredNodeId)) {
-                        String regexExtractor = createExtractorRegex(requiredNodeId);
-                        if (!nodeIdExtractors.contains(regexExtractor)) {
-                            regexExtractor = escapeCurlyBraces(regexExtractor);
-                            // no need to add duplicate extractor
-                            nodeIdExtractors.add(regexExtractor);
-                            lines.add(i, "\t\t\t.check(extract_" + requiredNodeId + "_Id)");
-                            ++i;
-                        }
+            for (Map.Entry<Pair<String, String>, String> entry : responseFilenameAndNodeIdToRegexpExtractor.entrySet()) {
+                String responseFileName = entry.getKey().getLeft();
+                String requiredNodeId = entry.getKey().getRight();
+
+                if (aline.contains(responseFileName)) {
+                    String check = "\t\t\t.check(extract_" + requiredNodeId + "_Id)";
+                    if (!usedChecks.contains(check)) {
+                        usedChecks.add(check);
+                        lines.add(i, check);
+                        ++i;
                     }
                 }
             }
@@ -213,7 +205,8 @@ public class LoadTestConfigurator {
         for (int i = 0; i < lines.size(); i++) {
             final String aline = lines.get(i);
             if (aline.contains("val scn = scenario")) {
-                for (String extractor : nodeIdExtractors) {
+                List<String> extractors = responseFilenameAndNodeIdToRegexpExtractor.values().stream().distinct().collect(Collectors.toList());
+                for (String extractor : extractors) {
                     lines.add(i - 1, extractor);
                 }
                 lines.add(i - 1, "\n");
@@ -253,50 +246,42 @@ public class LoadTestConfigurator {
         return regexExtractor;
     }
 
-    private boolean containsStringInAListOfStrings(String firstString, List<String> listOfStrings) {
-        for (String str : listOfStrings) {
-            if (firstString.contains(str)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    String createExtractorRegex(String requiredConnectorId) {
-        final String propertyValueCss = nodeIdToCssIdMap.get(requiredConnectorId);
-        final String propertyValueLabel = nodeIdToLabelMap.get(requiredConnectorId);
-        final String propertyValueText = nodeIdToTextMap.get(requiredConnectorId);
-        final String propertyValueTheme = nodeIdToThemeMap.get(requiredConnectorId);
-        final String propertyValueAdd = nodeIdToAddMap.get(requiredConnectorId);
-        final String propertyValueTag = nodeIdToTagMap.get(requiredConnectorId);
+    String createExtractorRegex(String requiredNodeId) {
+        final String propertyValueCss = nodeIdToCssIdMap.get(requiredNodeId);
+        final String propertyValueLabel = nodeIdToLabelMap.get(requiredNodeId);
+        final String propertyValueText = nodeIdToTextMap.get(requiredNodeId);
+        //final String propertyValueTheme = nodeIdToThemeMap.get(requiredNodeId);
+        final String propertyValueAdd = nodeIdToAddMap.get(requiredNodeId);
+        final String propertyValueTag = nodeIdToTagMap.get(requiredNodeId);
         if (propertyValueCss != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueCss));
             return regexExtractor;
         } else if (propertyValueLabel != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
             return regexExtractor;
         } else if (propertyValueText != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_text");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueText));
             return regexExtractor;
-        } else if (propertyValueTheme != null) {
-            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTheme));
-            return regexExtractor;
+//        }
+//        else if (propertyValueTheme != null) {
+//            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
+//            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
+//            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTheme));
+//            return regexExtractor;
         } else if (propertyValueAdd != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_add");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueAdd));
             return regexExtractor;
         } else if (propertyValueTag != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_tag");
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTag));
             return regexExtractor;
         }
@@ -381,16 +366,17 @@ public class LoadTestConfigurator {
             if ((nodeIdToCssIdMap.get(nodeId) != null ||
                     nodeIdToLabelMap.get(nodeId) != null ||
                     nodeIdToTextMap.get(nodeId) != null ||
-                    nodeIdToThemeMap.get(nodeId) != null ||
+//                    nodeIdToThemeMap.get(nodeId) != null ||
                     nodeIdToAddMap.get(nodeId) != null ||
-                    nodeIdToTagMap.get(nodeId) != null) && nodeIdToResponseFileNames.get(nodeId) != null) {
+                    nodeIdToTagMap.get(nodeId) != null
+                ) && nodeIdToResponseFileName.get(nodeId) != null) {
                 String idName = "_" + nodeId + "_Id";
                 requestBody = requestBody.substring(0, index + 7) + "${" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
                 matcher = p.matcher(requestBody);
-                requiredNodeIds.add(nodeId);
-                if (requestFileName != null) {
-                    storeNodeIdToRequiredFileNamesMap(requestFileName, nodeId);
-                }
+
+                String regexExtractor = createExtractorRegex(nodeId);
+                regexExtractor = escapeCurlyBraces(regexExtractor);
+                responseFilenameAndNodeIdToRegexpExtractor.put(Pair.of(nodeIdToResponseFileName.get(nodeId),nodeId), regexExtractor);
             }
         }
 
@@ -487,7 +473,7 @@ public class LoadTestConfigurator {
                         extractTextNode(responseFilename, node, prevNode, nodeId);
                         extractAddNode(responseFilename, node, nodeId);
                         extractTagNode(responseFilename, node, nodeId);
-                        extractThemeNode(responseFilename, node, nodeId);
+                        //extractThemeNode(responseFilename, node, nodeId);
                         prevNode = node;
                     }
                 }
@@ -575,20 +561,20 @@ public class LoadTestConfigurator {
     }
 
     private void stroreNodeIdToResponseFileNamesMap(String requestFilename, String nodeId) {
-        nodeIdToResponseFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-        // TODO: consider refactoring now only using the latest response file
+//        nodeIdToResponseFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+        // TODO: consider refactoring, now only using the latest response file
         // Is earlier response file needed in some cases
         // if yes, then futher changes are needed to make sure correct regexp is created in the correct place
-        if (nodeIdToResponseFileNames.get(nodeId).size()==1) {
-            nodeIdToResponseFileNames.get(nodeId).clear();
-        }
-        nodeIdToResponseFileNames.get(nodeId).add(requestFilename);
+//        if (nodeIdToResponseFileNames.get(nodeId).size()==1) {
+//            nodeIdToResponseFileNames.get(nodeId).clear();
+//        }
+        nodeIdToResponseFileName.put(nodeId, requestFilename);
     }
 
-    private void storeNodeIdToRequiredFileNamesMap(String requestFileName, String nodeId) {
-        nodeIdToRequiredInRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
-        nodeIdToRequiredInRequestFileNames.get(nodeId).add(requestFileName);
-    }
+//    private void storeNodeIdToRequiredFileNamesMap(String requestFileName, String nodeId) {
+//        nodeIdToRequiredInRequestFileNames.computeIfAbsent(nodeId, k -> new ArrayList<>());
+//        nodeIdToRequiredInRequestFileNames.get(nodeId).add(requestFileName);
+//    }
 
     private void loadPropertiesFile() {
         props = new Properties();
