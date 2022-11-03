@@ -87,7 +87,6 @@ public class LoadTestRunner {
         propsBuilder.binariesDirectory(recordingParameters.getSimulationFilePath() + "/test-classes");
         propsBuilder.resourcesDirectory(recordingParameters.getSimulationFilePath());
         propsBuilder.resultsDirectory(recordingParameters.getResourcesPath() + "/results");
-        propsBuilder.simulationsDirectory(recordingParameters.getSimulationFilePath());
         propsBuilder.resourcesDirectory(recordingParameters.getResourcesPath());
         final Map<String, Object> propsMap = propsBuilder.build();
         propsMap.put("gatling.core.mute", true);

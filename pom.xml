@@ -5,18 +5,17 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.4.0</version>
+	<version>0.5.0</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
 
-		<gatling.version>3.0.3</gatling.version>
-		<gatling-plugin.version>3.0.3</gatling-plugin.version>
-		<scala-maven-plugin.version>3.4.4</scala-maven-plugin.version>
-		<vaadin.version>14.7.5</vaadin.version>
+		<gatling.version>3.8.4</gatling.version>
+		<gatling-plugin.version>4.2.7</gatling-plugin.version>
+		<vaadin.version>14.8.20</vaadin.version>
 
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -327,31 +326,14 @@
 			</activation>
 			<dependencies>
 				<dependency>
-					<groupId>io.netty</groupId>
-					<artifactId>netty-transport</artifactId>
-					<version>4.1.25.Final</version>
-					<scope>test</scope>
-				</dependency>
-				<dependency>
 					<groupId>io.gatling.highcharts</groupId>
 					<artifactId>gatling-charts-highcharts</artifactId>
 					<version>${gatling.version}</version>
 					<scope>test</scope>
-					<exclusions>
-						<exclusion>
-							<groupId>io.netty</groupId>
-							<artifactId>netty-transport</artifactId>
-						</exclusion>
-					</exclusions>
 				</dependency>
 			</dependencies>
 			<build>
 				<plugins>
-					<plugin>
-						<groupId>net.alchim31.maven</groupId>
-						<artifactId>scala-maven-plugin</artifactId>
-						<version>${scala-maven-plugin.version}</version>
-					</plugin>
 					<plugin>
 						<groupId>io.gatling</groupId>
 						<artifactId>gatling-maven-plugin</artifactId>

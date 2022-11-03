@@ -7,7 +7,7 @@ import picocli.CommandLine;
         subcommands = {CommandLineRunner.Recorder.class})
 public class CommandLineRunner implements Runnable {
 
-    @CommandLine.Option(names = {"-f", "--file-path"}, description = "Gatling Scala file path")
+    @CommandLine.Option(names = {"-f", "--file-path"}, description = "Gatling Java file path")
     String simulationFilePathWithFile = null;
 
     @CommandLine.Option(names = {"-r", "--request-bodies-path"}, description = "Request bodies folder's path. If not given request bodies are assumed to be in the same folder as the test script.")
@@ -135,7 +135,7 @@ public class CommandLineRunner implements Runnable {
     /**
      * Unfinished
      */
-    @CommandLine.Command(name = "run", description = "Run given Gatling Scala load test script")
+    @CommandLine.Command(name = "run", description = "Run given Gatling java load test script")
     public static class TestRunner implements Runnable {
 
         @CommandLine.Option(names = {"-f", "--file-path"}, description = "Path to the test script")
@@ -176,12 +176,12 @@ public class CommandLineRunner implements Runnable {
 
     private static String extractTestNameFromTheFileNamePath(String filePath) {
         if (filePath.contains("\\")) {
-            return filePath.substring(filePath.lastIndexOf('\\') + 1).replace(".scala", "").replace(".har", "");
+            return filePath.substring(filePath.lastIndexOf('\\') + 1).replace(".java", "").replace(".har", "");
         }
         else if (filePath.contains("/")) {
-            return filePath.substring(filePath.lastIndexOf('/') + 1).replace(".scala", "").replace(".har", "");
+            return filePath.substring(filePath.lastIndexOf('/') + 1).replace(".java", "").replace(".har", "");
         } else {
-            return filePath.replace(".scala", "").replace(".har", "");
+            return filePath.replace(".java", "").replace(".har", "");
         }
     }
 

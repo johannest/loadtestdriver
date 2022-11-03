@@ -1,23 +1,21 @@
 package org.vaadin.johannest.loadtestdriver;
 
-import java.io.File;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.logging.Logger;
-
-import com.google.common.base.Strings;
 import io.gatling.commons.util.DefaultClock;
-import org.apache.commons.io.FileUtils;
-
 import io.gatling.recorder.config.RecorderConfiguration;
 import io.gatling.recorder.config.RecorderMode;
 import io.gatling.recorder.config.RecorderPropertiesBuilder;
 import io.gatling.recorder.controller.RecorderController;
+import io.gatling.recorder.render.template.Format;
+import org.apache.commons.io.FileUtils;
 import scala.Option;
 import scala.collection.mutable.Map;
 import scala.collection.mutable.StringBuilder;
+
+import java.io.File;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.logging.Logger;
 
 public class LoadTestsRecorder {
 
@@ -28,7 +26,7 @@ public class LoadTestsRecorder {
         this.recordingParameters = recordingParameters;
 
         final Option<Path> path = createPathToRecorderConf();
-        final Map<String, Object> map = scala.collection.mutable.Map$.MODULE$.<String, Object> empty();
+        final Map<String, Object> map = (Map<String, Object>) scala.collection.mutable.Map$.MODULE$.<String, Object> empty();
         map.put("recorder.core.resourcesFolder", recordingParameters.getResourcesPath());
         map.put("recorder.core.headless", recordingParameters.isHeadlessEnabled());
 
@@ -54,6 +52,7 @@ public class LoadTestsRecorder {
             props.mode(RecorderMode.apply("Proxy"));
             props.localPort(recordingParameters.getProxyPort());
         }
+        props.simulationFormat(Format.fromString("java11"));
         props.simulationClassName(recordingParameters.getTestName());
         props.simulationsFolder(recordingParameters.getSimulationFilePath());
         props.resourcesFolder(recordingParameters.getResourcesPath());
@@ -63,8 +62,8 @@ public class LoadTestsRecorder {
         props.automaticReferer(true);
         props.checkResponseBodies(true);
         if (recordingParameters.isIgnoreStatics()) {
-            props.filterStrategy("BlacklistFirst");
-            props.blacklist(Arrays.asList(recordingParameters.getStaticPatterns()));
+            props.enableFilters(true);
+            props.denyList(Arrays.asList(recordingParameters.getStaticPatterns()));
         }
         return props;
     }
