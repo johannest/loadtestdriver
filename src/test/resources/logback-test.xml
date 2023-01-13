@@ -13,12 +13,15 @@
 	</appender>
 
 	<!-- Uncomment for logging ALL HTTP request and responses -->
-	<!---->
-	<logger name="io.gatling.http" level="TRACE" />
+	<!--
+	<logger name="io.gatling.http" level="TRACE" /> -->
 	<!-- Uncomment for logging ONLY FAILED HTTP request and responses -->
 	<!--
 	<logger name="io.gatling.http" level="DEBUG" />
 	-->
+	<!-- WebSocket logging
+	<logger name="io.gatling.http.action.ws.fsm" level="TRACE" />-->
+
 	<root level="WARN">
 		<appender-ref ref="CONSOLE" />
 	</root>
