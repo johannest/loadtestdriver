@@ -1,1 +1,0 @@
-{"csrfToken":"54c6f8e6-efa6-47cd-8985-b9c09f821008","rpc":[{"type":"event","node":20,"event":"click","data":{"event.shiftKey":false,"event.metaKey":false,"event.detail":1,"event.ctrlKey":false,"event.clientX":1318,"event.clientY":278,"event.altKey":false,"event.button":0,"event.screenY":363,"event.screenX":1318}}],"syncId":8,"clientId":8}

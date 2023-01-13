@@ -1,1 +1,0 @@
-{"csrfToken":"a4286d4f-bf70-4770-892e-0308e0aee341","rpc":[{"type":"mSync","node":4,"feature":1,"property":"disabled","value":true},{"type":"event","node":4,"event":"login","data":{"event.detail.username":"admin@vaadin.com","event.detail.password":"admin"}}],"syncId":1,"clientId":1}
