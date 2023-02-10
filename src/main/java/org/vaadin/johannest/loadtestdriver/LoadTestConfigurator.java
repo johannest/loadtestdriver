@@ -34,6 +34,7 @@ public class LoadTestConfigurator {
 
     private final Map<String, String> nodeIdToResponseFileName = new HashMap<>();
     private final Map<Pair<String,String>, String> responseFilenameAndNodeIdToRegexpExtractor = new HashMap<>();
+    private final Map<String, String> responseFilenameToRegexpExtractor = new HashMap<>();
 
     private TreeMap<String, String> requestNamesAndBodies = new TreeMap<>();
     private TreeMap<String, String> responseNamesAndBodies = new TreeMap<>();
@@ -226,6 +227,7 @@ public class LoadTestConfigurator {
         final String propertyValuePlaceholder = nodeIdToPlaceholderMap.get(requiredNodeId);
         final String propertyValueText = nodeIdToTextMap.get(requiredNodeId);
         final String propertyValueAdd = nodeIdToAddMap.get(requiredNodeId);
+        final String propertyValueTheme = nodeIdToAddMap.get(requiredNodeId);
         final String propertyValueTag = nodeIdToTagMap.get(requiredNodeId);
         if (propertyValueCss != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
@@ -251,6 +253,11 @@ public class LoadTestConfigurator {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_add");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueAdd));
+            return regexExtractor;
+        }  else if (propertyValueTheme != null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTheme));
             return regexExtractor;
         } else if (propertyValueTag != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_tag");
@@ -328,17 +335,23 @@ public class LoadTestConfigurator {
                     nodeIdToLabelMap.get(nodeId) != null ||
                     nodeIdToPlaceholderMap.get(nodeId) != null ||
                     nodeIdToTextMap.get(nodeId) != null ||
-//                    nodeIdToThemeMap.get(nodeId) != null ||
+                    nodeIdToThemeMap.get(nodeId) != null ||
                     nodeIdToAddMap.get(nodeId) != null ||
                     nodeIdToTagMap.get(nodeId) != null
                 ) && nodeIdToResponseFileName.get(nodeId) != null) {
-                String idName = "_" + nodeId + "_Id";
-                requestBody = requestBody.substring(0, index + 7) + "#{" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
-                matcher = p.matcher(requestBody);
 
                 String regexExtractor = createExtractorRegex(nodeId);
                 regexExtractor = escapeCurlyBraces(regexExtractor);
-                responseFilenameAndNodeIdToRegexpExtractor.put(Pair.of(nodeIdToResponseFileName.get(nodeId),nodeId), regexExtractor);
+                String regexpStart = regexExtractor.split("saveAs")[0];
+
+                // do not use identical regexps twice in same response file
+                if (responseFilenameToRegexpExtractor.get(nodeIdToResponseFileName.get(nodeId)+regexpStart) == null) {
+                    String idName = "_" + nodeId + "_Id";
+                    requestBody = requestBody.substring(0, index + 7) + "#{" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
+                    matcher = p.matcher(requestBody);
+                    responseFilenameAndNodeIdToRegexpExtractor.put(Pair.of(nodeIdToResponseFileName.get(nodeId), nodeId), regexExtractor);
+                    responseFilenameToRegexpExtractor.put(nodeIdToResponseFileName.get(nodeId)+regexpStart, regexExtractor);
+                }
             }
         }
 
@@ -424,8 +437,8 @@ public class LoadTestConfigurator {
                         extractPlaceholderNode(responseFilename, node, nodeId);
                         extractTextNode(responseFilename, node, prevNode, nodeId);
                         extractAddNode(responseFilename, node, nodeId);
+                        extractThemeNode(responseFilename, node, nodeId);
                         extractTagNode(responseFilename, node, nodeId);
-                        //extractThemeNode(responseFilename, node, nodeId);
                         prevNode = node;
                     }
                 }
@@ -501,23 +514,23 @@ public class LoadTestConfigurator {
         }
     }
 
-    private void extractTagNode(String requestFilename, JsonObject node, String nodeId) {
-        if (node.hasKey("key") && node.getString("key").equals("tag")) {
-            // {"node":62,"type":"put","key":"tag","feat":0,"value":"vaadin-grid"}
-            JsonString tagValue = node.get("value");
-            if (!Strings.isNullOrEmpty(tagValue.getString())) {
-                nodeIdToTagMap.put(nodeId, tagValue.getString());
-                stroreNodeIdToResponseFileNamesMap(requestFilename, nodeId);
-            }
-        }
-    }
-
     private void extractThemeNode(String requestFilename, JsonObject node, String nodeId) {
         if (node.hasKey("key") && node.getString("key").equals("theme")) {
             // {"node":65,"type":"put","key":"theme","feat":3,"value":"primary"},
             JsonString tagValue = node.get("value");
             if (!Strings.isNullOrEmpty(tagValue.getString())) {
                 nodeIdToThemeMap.put(nodeId, tagValue.getString());
+                stroreNodeIdToResponseFileNamesMap(requestFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractTagNode(String requestFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("tag")) {
+            // {"node":62,"type":"put","key":"tag","feat":0,"value":"vaadin-grid"}
+            JsonString tagValue = node.get("value");
+            if (!Strings.isNullOrEmpty(tagValue.getString())) {
+                nodeIdToTagMap.put(nodeId, tagValue.getString());
                 stroreNodeIdToResponseFileNamesMap(requestFilename, nodeId);
             }
         }
