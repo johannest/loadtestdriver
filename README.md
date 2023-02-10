@@ -35,7 +35,7 @@ http://chromedriver.chromium.org
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
-	<version>0.5.0</version>
+	<version>0.5.1</version>
 </dependency> 
 ```
 
@@ -78,12 +78,12 @@ LoadTestDriver uses Gatling to record the load test with parameters given in Dri
 
 Build CLI with the following command `mvn clean package spring-boot:repackage` This will create an executable jar file from the project.
 
-To run the CLI you can use `java -jar` for example `java -jar .\target\loadtestdriver-0.5.0.jar -f .\test_scripts\LoginTest.scala -r .\test_scripts\resources`
+To run the CLI you can use `java -jar` for example `java -jar .\target\loadtestdriver-0.5.1.jar -f .\test_scripts\LoginTest.scala -r .\test_scripts\resources`
 
-To see all possible command line options run `java -jar .\target\loadtestdriver-0.5.0.jar --help`
+To see all possible command line options run `java -jar .\target\loadtestdriver-0.5.1.jar --help`
 
 ### Recorder
-LoadTest CLI can be used also to quickly start Gatling recorder with the preferred recording parameters. Run `java -jar .\target\loadtestdriver-0.3.4.jar record --help` to see possible command line options.
+LoadTest CLI can be used also to quickly start Gatling recorder with the preferred recording parameters. Run `java -jar .\target\loadtestdriver-0.5.1.jar record --help` to see possible command line options.
 
 ### Quick start guide with Vaadin BookStore demo application
 1. Open Firefox and its developer tools (F12).
@@ -92,6 +92,6 @@ LoadTest CLI can be used also to quickly start Gatling recorder with the preferr
 4. Paste demo app's URL (https://vaadin-bookstore-example.demo.vaadin.com/) to URL bar.
 5. Login to app and do other UI interactions if wanted.
 6. When ready, select "Save All As HAR" from the cog symbol (save as `vaadin_bookstore.har` under `.\src\test\resources`)
-7. Run `java -jar .\target\loadtestdriver-0.5.0.jar record -hf .\src\test\resources\vaadin_bookstore.har -d .\src\test\java\ -r .\src\test\resources` to generate Gatling test script in headless mode from a HAR file.
-8. Run `java -jar .\target\loadtestdriver-0.5.0.jar -f .\src\test\java\vaadin_bookstore -r .\src\test\resources` to convert the test script to Vaadin compatible format.
+7. Run `java -jar .\target\loadtestdriver-0.5.1.jar record -hf .\src\test\resources\vaadin_bookstore.har -d .\src\test\java\ -r .\src\test\resources` to generate Gatling test script in headless mode from a HAR file.
+8. Run `java -jar .\target\loadtestdriver-0.5.1.jar -f .\src\test\java\vaadin_bookstore -r .\src\test\resources` to convert the test script to Vaadin compatible format.
 9. Run `mvn -Pscalability gatling:test` to compile and run the test script with Gatling. 

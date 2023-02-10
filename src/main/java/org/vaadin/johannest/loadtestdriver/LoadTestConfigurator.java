@@ -26,6 +26,7 @@ public class LoadTestConfigurator {
 
     private final Map<String, String> nodeIdToCssIdMap = new HashMap<>();
     private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
+    private final Map<String, String> nodeIdToPlaceholderMap = new HashMap<>();
     private final Map<String, String> nodeIdToTextMap = new HashMap<>();
     private final Map<String, String> nodeIdToAddMap = new HashMap<>();
     private final Map<String, String> nodeIdToTagMap = new HashMap<>();
@@ -222,6 +223,7 @@ public class LoadTestConfigurator {
     String createExtractorRegex(String requiredNodeId) {
         final String propertyValueCss = nodeIdToCssIdMap.get(requiredNodeId);
         final String propertyValueLabel = nodeIdToLabelMap.get(requiredNodeId);
+        final String propertyValuePlaceholder = nodeIdToPlaceholderMap.get(requiredNodeId);
         final String propertyValueText = nodeIdToTextMap.get(requiredNodeId);
         final String propertyValueAdd = nodeIdToAddMap.get(requiredNodeId);
         final String propertyValueTag = nodeIdToTagMap.get(requiredNodeId);
@@ -234,6 +236,11 @@ public class LoadTestConfigurator {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
+            return regexExtractor;
+        } else if (propertyValuePlaceholder != null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_placeholder");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValuePlaceholder));
             return regexExtractor;
         } else if (propertyValueText != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_text");
@@ -319,6 +326,7 @@ public class LoadTestConfigurator {
             // checks whether node id would be available at all with supported regexp extractors
             if ((nodeIdToCssIdMap.get(nodeId) != null ||
                     nodeIdToLabelMap.get(nodeId) != null ||
+                    nodeIdToPlaceholderMap.get(nodeId) != null ||
                     nodeIdToTextMap.get(nodeId) != null ||
 //                    nodeIdToThemeMap.get(nodeId) != null ||
                     nodeIdToAddMap.get(nodeId) != null ||
@@ -413,6 +421,7 @@ public class LoadTestConfigurator {
 
                         extractCssIdNode(responseFilename, node, nodeId);
                         extractLabelNode(responseFilename, node, nodeId);
+                        extractPlaceholderNode(responseFilename, node, nodeId);
                         extractTextNode(responseFilename, node, prevNode, nodeId);
                         extractAddNode(responseFilename, node, nodeId);
                         extractTagNode(responseFilename, node, nodeId);
@@ -448,6 +457,17 @@ public class LoadTestConfigurator {
             JsonString labelValue = node.get("value");
             if (!Strings.isNullOrEmpty(labelValue.getString())) {
                 nodeIdToLabelMap.put(nodeId, labelValue.getString());
+                stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractPlaceholderNode(String responseFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("placeholder")) {
+            // {"node":39,"type":"put","key":"placeholder","feat":1,"value":"Category"}
+            JsonString phValue = node.get("value");
+            if (!Strings.isNullOrEmpty(phValue.getString())) {
+                nodeIdToPlaceholderMap.put(nodeId, phValue.getString());
                 stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
             }
         }
