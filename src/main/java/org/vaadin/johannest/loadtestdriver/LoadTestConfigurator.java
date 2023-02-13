@@ -25,6 +25,7 @@ public class LoadTestConfigurator {
     private final ConfigurationParameters configurationParameters;
 
     private final Map<String, String> nodeIdToCssIdMap = new HashMap<>();
+    private final Map<String, String> nodeIdToIdMap = new HashMap<>();
     private final Map<String, String> nodeIdToLabelMap = new HashMap<>();
     private final Map<String, String> nodeIdToPlaceholderMap = new HashMap<>();
     private final Map<String, String> nodeIdToTextMap = new HashMap<>();
@@ -223,18 +224,24 @@ public class LoadTestConfigurator {
 
     String createExtractorRegex(String requiredNodeId) {
         final String propertyValueCss = nodeIdToCssIdMap.get(requiredNodeId);
+        final String propertyValueId = nodeIdToIdMap.get(requiredNodeId);
         final String propertyValueLabel = nodeIdToLabelMap.get(requiredNodeId);
         final String propertyValuePlaceholder = nodeIdToPlaceholderMap.get(requiredNodeId);
         final String propertyValueText = nodeIdToTextMap.get(requiredNodeId);
         final String propertyValueAdd = nodeIdToAddMap.get(requiredNodeId);
-        final String propertyValueTheme = nodeIdToAddMap.get(requiredNodeId);
+        final String propertyValueTheme = nodeIdToThemeMap.get(requiredNodeId);
         final String propertyValueTag = nodeIdToTagMap.get(requiredNodeId);
         if (propertyValueCss != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueCss));
             return regexExtractor;
-        } else if (propertyValueLabel != null) {
+        } else if (propertyValueId != null) {
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_id2");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueId));
+            return regexExtractor;
+        }  else if (propertyValueLabel != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
@@ -275,6 +282,7 @@ public class LoadTestConfigurator {
         for (char specialChar : specialChars) {
             result = result.replace(Character.toString(specialChar), "\\\\" + specialChar);
         }
+        result = result.replace("\"", "\\\"");
         return result;
     }
 
@@ -332,11 +340,12 @@ public class LoadTestConfigurator {
             int index = matcher.start();
             // checks whether node id would be available at all with supported regexp extractors
             if ((nodeIdToCssIdMap.get(nodeId) != null ||
+                    nodeIdToIdMap.get(nodeId) != null ||
                     nodeIdToLabelMap.get(nodeId) != null ||
                     nodeIdToPlaceholderMap.get(nodeId) != null ||
                     nodeIdToTextMap.get(nodeId) != null ||
-                    nodeIdToThemeMap.get(nodeId) != null ||
                     nodeIdToAddMap.get(nodeId) != null ||
+                    nodeIdToThemeMap.get(nodeId) != null ||
                     nodeIdToTagMap.get(nodeId) != null
                 ) && nodeIdToResponseFileName.get(nodeId) != null) {
 
@@ -433,6 +442,7 @@ public class LoadTestConfigurator {
                         String nodeId = node.get("node").asString();
 
                         extractCssIdNode(responseFilename, node, nodeId);
+                        extractIdNode(responseFilename, node, nodeId);
                         extractLabelNode(responseFilename, node, nodeId);
                         extractPlaceholderNode(responseFilename, node, nodeId);
                         extractTextNode(responseFilename, node, prevNode, nodeId);
@@ -459,6 +469,17 @@ public class LoadTestConfigurator {
             if ("@id".equals(payload.getString("type"))) {
                 String cssId = payload.getString("payload");
                 nodeIdToCssIdMap.put(nodeId, cssId);
+                stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
+            }
+        }
+    }
+
+    private void extractIdNode(String responseFilename, JsonObject node, String nodeId) {
+        if (node.hasKey("key") && node.getString("key").equals("label")) {
+            // {"node":39,"type":"put","key":"id","feat":1,"value":"Category"}
+            JsonString labelValue = node.get("value");
+            if (!Strings.isNullOrEmpty(labelValue.getString())) {
+                nodeIdToIdMap.put(nodeId, labelValue.getString());
                 stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
             }
         }
@@ -501,14 +522,16 @@ public class LoadTestConfigurator {
     }
 
     private void extractAddNode(String responseFilename, JsonObject node, String nodeId) {
-        if (node.hasKey("splice") && node.hasKey("add")) {
+        if (node.hasKey("type") && node.hasKey("add")) {
             // {"node":62,"type":"splice","feat":19,"index":0,"add":["sortersChanged","select",..
-            JsonArray addValues = node.get("add");
-            if (addValues.length() > 0) {
-                String addValue = addValues.getString(0);
-                if (!Strings.isNullOrEmpty(addValue)) {
-                    nodeIdToAddMap.put(nodeId, addValue);
-                    stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
+            if (node.getString("type").equals("splice")) {
+                JsonArray addValues = node.get("add");
+                if (addValues.length() > 0) {
+                    String addValue = addValues.toJson();
+                    if (!Strings.isNullOrEmpty(addValue)) {
+                        nodeIdToAddMap.put(nodeId, addValue);
+                        stroreNodeIdToResponseFileNamesMap(responseFilename, nodeId);
+                    }
                 }
             }
         }
