@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 12, "clientId": 12, "changes" : [], "state":{"87":{"currentFilterText":"Strawbe"}}, "types":{"87":"41","88":"13"}, "hierarchy":{"87":["88"],"88":[]}, "rpc" : [["88","com.vaadin.shared.data.DataCommunicatorClientRpc","reset",[3]],["88","com.vaadin.shared.data.DataCommunicatorClientRpc","reset",[3]]], "meta" : {}, "resources" : {}, "timings":[53, 2]}]

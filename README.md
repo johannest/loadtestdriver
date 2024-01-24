@@ -9,41 +9,43 @@ Probably the easiest way to quickly record a scalability/load test for a Vaadin 
 
 Workflow
 ========
-### Install PhantomJS (>=2.0.0) to your computer.
-Verify that it is in your path by executing: `phantomjs -v`on the command prompt, e.g.:
-```
-C:\Users\IEUser>phantomjs -v
-2.1.1
-```
-In Windows you have to add the path of PhantomJs' bin folder (e.g. `C:\phantomjs-2.1.1-windows\phantomjs-2.1.1-windows\bin`) into Path System Variable (in Advanced System Settings -> Environment Variables).
-
 ### Add dependency to your pom.xml
+Vaadin 14
 ```xml
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
-	<version>0.0.2</version>
+	<version>0.3.4</version>
+</dependency> 
+```
+
+Vaadin 8
+```xml
+<dependency>
+	<groupId>org.vaadin.johannest</groupId>
+	<artifactId>loadtestdriver</artifactId>
+	<version>0.2.11</version>
 </dependency> 
 ```
 
 ### Allow remote access of your application server 
 Verify that your application server works in your browser with your local IP address such as 192.168.12.3:8080. It is **not** enough that it works in `localhost:8080` or `127.0.0.1:8080` because of a limitation of PhantomJS. For example, in case of WildFly you can use command line parameter `-b 0.0.0.0` (https://bgasparotto.com/enable-wildfly-remote-access/)
 
-### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method
+### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method. It recommended to store reference to the driver instance to make it easy to access the API of the driver.
 ```Java
 @Before
 public void setUp() throws Exception {
-	WebDriver driver = new LoadTestDriverBuilder().
-			withIpAddress(LoadTestDriver.getLocalIpAddress()).
-			withNumberOfConcurrentUsers(1).
-			withRampUpTimeInSeconds(1).
-			withTestName("MyUI_ScalabilityTest").
-			withPath("/Users/your_username/Desktop/gatling").
-			withResourcesPath("/Users/your_username/Desktop/gatling").
-			withStaticResourcesIngnoring().
-			withTestRefactoring().
-			build();
-	setDriver(driver);
+	    loadTestDriver = new LoadTestDriverBuilder().
+    				withIpAddress(LoadTestDriver.getLocalIpAddress()).
+    				withNumberOfConcurrentUsers(2).
+    				withRampUpTimeInSeconds(2).
+    				withTestName("Bakery_AddOrder").
+    				withPath("C:\\dev\\gatling8").
+    				withResourcesPath("C:\\dev\\gatling8\\resources").
+    				withStaticResourcesIngnoring().
+    				withTestRefactoring().
+    				build();
+    		setDriver(loadTestDriver);
 //		setDriver(new ChromeDriver());	
 }
 ```
@@ -61,3 +63,6 @@ private void openTestUrl() {
 
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
+
+### Example V14 project using the add-on
+https://github.com/johannest/v14loadtestdriverdemo

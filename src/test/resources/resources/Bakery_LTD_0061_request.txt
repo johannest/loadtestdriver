@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["153","com.vaadin.shared.ui.ui.UIServerRpc","resize",[400,300,400,300]]],"syncId":${syncId},"clientId":${clientId},"wsver":"8.4.1"}

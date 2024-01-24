@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 21, "clientId": 21, "changes" : [], "state":{"73":{"text":"$78.16"},"87":{"selectedItemCaption":"Strawberry Cheese Cake","selectedItemKey":"6"},"92":{"text":"$78.16"}}, "types":{"73":"2","87":"41","92":"2"}, "hierarchy":{"87":["88"]}, "rpc" : [], "meta" : {}, "resources" : {}, "timings":[61, 1]}]

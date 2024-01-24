@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["${_98_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla Crac"]],["${_98_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla Crack"]],["${_98_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla Cracke"]]],"syncId":${syncId},"clientId":${clientId}}

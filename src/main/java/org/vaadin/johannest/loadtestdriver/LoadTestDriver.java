@@ -2,14 +2,20 @@ package org.vaadin.johannest.loadtestdriver;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.logging.Logger;
 
-import org.openqa.selenium.phantomjs.PhantomJSDriver;
-import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 
-public class LoadTestDriver extends PhantomJSDriver {
+public class LoadTestDriver extends ChromeDriver {
+
+    public static final String DEFAULT_PING_URL = "http://www.google.com/search?q=";
+    public static final String INJECT_KEYWORD = "INJECT_TRYMAX_LOOP";
 
     private final LoadTestConfigurator loadTestConfigurator;
+    private LoadTestParameters loadTestParameters;
     private final boolean headlessEnabled;
 
     private Recorder recorder;
@@ -17,16 +23,17 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private int proxyPort;
     private String proxyHost;
-    private String tempFilePath;
+    private String simulationFilePath;
     private String resourcesPath;
     private String testName;
 
     private boolean testConfiguringEnabled;
     private boolean staticResourcesIngnoringEnabled;
 
-    public LoadTestDriver(DesiredCapabilities capabilities, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
-        super(capabilities);
+    public LoadTestDriver(ChromeOptions options, LoadTestParameters loadTestParameters, boolean headlessEnabled) {
+        super(options);
         loadTestConfigurator = new LoadTestConfigurator(loadTestParameters);
+        this.loadTestParameters = loadTestParameters;
         this.headlessEnabled = headlessEnabled;
     }
 
@@ -59,12 +66,12 @@ public class LoadTestDriver extends PhantomJSDriver {
 
     private void startRecording() {
         Logger.getLogger(LoadTestDriver.class.getName()).info("## startRecording");
-        recorder = new Recorder(getProxyPort(), getProxyHost(), getTempFilePath(), getResourcesPath(), getTestName(),
+        recorder = new Recorder(getProxyPort(), getProxyHost(), getSimulationFilePath(), getResourcesPath(), getTestName(),
                 staticResourcesIngnoringEnabled, headlessEnabled);
 
         loadTestConfigurator.setClassName(recorder.getClassName());
         loadTestConfigurator.setResourcesPath(recorder.getResourcesPath());
-        loadTestConfigurator.setTempFilePath(recorder.getTempFilePath());
+        loadTestConfigurator.setTempFilePath(recorder.getSimulationFilePath());
 
         recording = true;
         recorder.start();
@@ -74,21 +81,21 @@ public class LoadTestDriver extends PhantomJSDriver {
     public void close() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.close();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+                loadTestConfigurator.configureTestFile(true, message -> {
+                    throw new AssertionError("Test file configuration failed: "+message);
+                });
             }
         }
     }
 
-    @Override
-    protected void stopClient() {
-        if (recording) {
-            stopRecordingAndSaveResults();
-            super.stopClient();
-            if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
-            }
+    private void waitForAWhile() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -96,9 +103,12 @@ public class LoadTestDriver extends PhantomJSDriver {
     public void quit() {
         if (recording) {
             stopRecordingAndSaveResults();
+            waitForAWhile();
             super.quit();
             if (testConfiguringEnabled) {
-                loadTestConfigurator.configureTestFile();
+                loadTestConfigurator.configureTestFile(true, message -> {
+                    throw new AssertionError("Test file configuration failed: "+message);
+                });
             }
         }
     }
@@ -124,12 +134,12 @@ public class LoadTestDriver extends PhantomJSDriver {
         this.proxyHost = proxyHost;
     }
 
-    public String getTempFilePath() {
-        return tempFilePath;
+    public String getSimulationFilePath() {
+        return simulationFilePath;
     }
 
-    public void setTempFilePath(String tempFilePath) {
-        this.tempFilePath = tempFilePath;
+    public void setSimulationFilePath(String simulationFilePath) {
+        this.simulationFilePath = simulationFilePath;
     }
 
     private String getResourcesPath() {
@@ -148,7 +158,7 @@ public class LoadTestDriver extends PhantomJSDriver {
         this.testName = testName;
     }
 
-    public void withStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
+    public void setStaticResourcesIngnoringEnabled(boolean staticResourcesIngnoringEnabled) {
         this.staticResourcesIngnoringEnabled = staticResourcesIngnoringEnabled;
     }
 
@@ -172,4 +182,76 @@ public class LoadTestDriver extends PhantomJSDriver {
         return staticResourcesIngnoringEnabled;
     }
 
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish
+     *
+     * @param maxTries          how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries pause between polls
+     * @param responseRegex     regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex    regex to parse tryMax parameters with String.split()
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
+     */
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, boolean resynchronizePolling, String requestName) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, delimiter, delimiterRegex, -1, resynchronizePolling, requestName);
+    }
+
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish, wait until waitAndforceSyncAfter_ms and then force resync
+     *
+     * @param maxTries                 how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries        pause between polls
+     * @param responseRegex            regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex           regex to parse tryMax parameters with String.split()
+     * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
+     */
+    public void injectTryMaxLoop(int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, int waitAndforceSyncAfter_ms, boolean resynchronizePolling, String requestName) {
+        injectTryMaxLoop(DEFAULT_PING_URL, maxTries, pauseBetweenTries, responseRegex, delimiter, delimiterRegex, waitAndforceSyncAfter_ms, resynchronizePolling, requestName);
+    }
+
+    /**
+     * Add marker for injecting Gatling tryMax loop to poll background thread to finish
+     *
+     * @param pingUrl                  url used to inject the marker
+     * @param maxTries                 how many time server-side is polled before marking the request failed
+     * @param pauseBetweenTries        pause between polls
+     * @param responseRegex            regular expression for successful response
+     * @param delimiter         String to used keep tryMax parameters separate in ping Url
+     * @param delimiterRegex           regex to parse tryMax parameters with String.split()
+     * @param waitAndforceSyncAfter_ms wait given time and call forceSync to sync "browser" and server-side after, do not wait force sync if timeout <= 0
+     * @param resynchronizePolling     while polling, do resynchronize in every poll request
+     */
+    public void injectTryMaxLoop(String pingUrl, int maxTries, int pauseBetweenTries, String responseRegex, String delimiter, String delimiterRegex, int waitAndforceSyncAfter_ms, boolean resynchronizePolling, String requestName) {
+        loadTestParameters.setTryMaxDelimiterRegex(delimiterRegex);
+        loadTestParameters.setResynchronizePolling(resynchronizePolling);
+        ((JavascriptExecutor) this).executeScript("window.open()");
+        try {
+            Thread.sleep(250);
+            ArrayList<String> tabs = new ArrayList<>(getWindowHandles());
+            Thread.sleep(250);
+            switchTo().window(tabs.get(1));
+            Thread.sleep(250);
+            super.get(pingUrl + INJECT_KEYWORD + delimiter + maxTries + delimiter + pauseBetweenTries + delimiter + responseRegex + delimiter + requestName + delimiter);
+            Thread.sleep(250);
+            this.execute("close");
+            switchTo().window(tabs.get(0));
+            Thread.sleep(250);
+
+            if (waitAndforceSyncAfter_ms > 0) {
+                Thread.sleep(waitAndforceSyncAfter_ms);
+                forceSync();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Force sync "browser" and server side
+     */
+    public void forceSync() {
+        ((JavascriptExecutor) this).executeScript("window.vaadin.forceSync()");
+    }
 }

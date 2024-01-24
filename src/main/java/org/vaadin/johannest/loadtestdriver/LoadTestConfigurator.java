@@ -8,33 +8,33 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import com.google.common.base.Strings;
 import elemental.json.Json;
 import elemental.json.JsonArray;
 import elemental.json.JsonObject;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
+import org.apache.commons.lang3.tuple.Triple;
+
+import javax.annotation.Nullable;
 
 public class LoadTestConfigurator {
 
-    public static final String V7_GRID_DATACOMM = "com.vaadin.shared.data.DataProviderRpc";
+    public interface ConfiguratioFailedCallback {
+        void conficuratioFailed(String message);
+    }
+
     public static final String V8_GRID_DATACOMM = "com.vaadin.shared.data.DataCommunicatorClientRpc";
 
     private static final String[] requestTypes = { "\"click\"", "\"disableOnClick\"", "\"setText\"", "[\"text\"",
             "\"select\"", "[\"selected\"", "\"requestRows\"", "[\"collapse\"", "[\"requestChildTree\"",
             "[\"scrollTop\"", "[\"scrollLeft\"", "[\"positionx\"", "[\"positiony\"", "[\"requestChildTree\"",
-            "[\"filter\"", "[\"page\"", "\"setChecked\"" };
+            "[\"filter\"", "[\"page\"", "\"setChecked\"", "dropRows", "update", "setFilter", "resize" };
 
     private static final String[] matchingProperties = { "id", "caption", "inputPrompt", "placeholder", "styles",
             "resources", "primaryStyleName" };
@@ -51,10 +51,12 @@ public class LoadTestConfigurator {
     private final Map<String, List<String>> connectorIdToRequestFileNames = new HashMap<>();
     private final Set<String> htmlRequestConnectors = new HashSet<>();
     private final Set<String> requiredConnectorIds = new HashSet<>();
+    private final Set<String> processedFiles = new HashSet<>();
 
     private int gridCounter;
     private int currentGridIndex = 0;
 
+    private String baseUrl;
     private String uiInitRequestFileName;
     private String resourcesPath;
     private String tempFilePath;
@@ -63,6 +65,11 @@ public class LoadTestConfigurator {
     private Properties props;
     private List<String> lines;
     private List<String> connectorIdExtractors;
+
+    private Integer uidlHeadersNo;
+    private String uidlPath;
+
+    private ConfiguratioFailedCallback errorCallback;
 
     public LoadTestConfigurator(LoadTestParameters loadTestParameters) {
         this.loadTestParameters = loadTestParameters;
@@ -82,10 +89,11 @@ public class LoadTestConfigurator {
     }
 
     public void configureTestFile() {
-        configureTestFile(true);
+        configureTestFile(true, null);
     }
 
-    public String configureTestFile(boolean saveResults) {
+    public String configureTestFile(boolean saveResults, @Nullable ConfiguratioFailedCallback errorCallback) {
+        this.errorCallback = errorCallback;
         System.out.println("### configureTestFile, save=" + saveResults);
         final String fileName = tempFilePath + "/" + className + ".scala";
         Logger.getLogger(LoadTestConfigurator.class.getName()).info("Configuring test file: " + fileName);
@@ -102,6 +110,10 @@ public class LoadTestConfigurator {
             addRegexExtractChecks();
             addRegexExtractDefinitions();
             addAdditionalImports();
+            removePossibleBodyByteCheck();
+            replacehardCodedUiIdAndPushIds();
+            handlePushRequests();
+            postTryMaxHandling();
 
             if (saveResults) {
                 final FileWriter fw = new FileWriter(file);
@@ -131,13 +143,36 @@ public class LoadTestConfigurator {
         return null;
     }
 
+    private void removePossibleBodyByteCheck() {
+        List<String> newLines = new ArrayList<>();
+        for (int i=0; i<lines.size(); i++) {
+            String aline = lines.get(i);
+            if (aline.contains(".check(bodyBytes.is(")) {
+                newLines.add("\t\t\t)");
+            } else {
+                newLines.add(aline);
+            }
+        }
+        lines = newLines;
+    }
+
     private void readScalaScriptAndDoInitialRefactoring(BufferedReader br, boolean saveResults) throws IOException {
         boolean syncIdsInitialized = false;
         String line;
-        String newLine;
+        String newLine = null;
+        String previousLine = null;
 
         while ((line = br.readLine()) != null) {
+            previousLine = newLine;
             newLine = line;
+
+            if (newLine.contains(".baseUrl(")) {
+                extractBaseUrl(line);
+            }
+
+            if (newLine.contains(".userAgentHeader")) {
+                insertWSBaseUrl(lines);
+            }
 
             if (newLine.contains("val scn")) {
                 insertHelperMethods(lines);
@@ -153,11 +188,6 @@ public class LoadTestConfigurator {
                 syncIdsInitialized = initializeSyncAndClientIds(newLine, lines);
             }
 
-            if (newLine.contains(".check(bodyBytes.is(")) {
-                lines.add("\t\t\t)");
-                continue;
-            }
-
             if (newLine.contains(".exec(http(")) {
                 if (loadTestParameters.pausesEnabled()) {
                     lines.add("\t\t.pause(" + loadTestParameters.getMinPause() + ", " +
@@ -165,17 +195,95 @@ public class LoadTestConfigurator {
                 }
             }
 
+            extractUidlHeaderNumber(newLine, previousLine);
+            extractUidlPath(newLine);
+
+
+            newLine = handleTryMax(br, newLine);
+
             newLine = requestBodyTreatments(newLine, saveResults);
 
             if (newLine.contains("atOnceUsers")) {
                 newLine = newLine.replaceFirst("inject\\(atOnceUsers\\(1\\)\\)",
-                        "inject(rampUsers(" + loadTestParameters.getConcurrentUsers() + ") over (" +
+                        "inject(rampUsers(" + loadTestParameters.getConcurrentUsers() + ") during (" +
                                 loadTestParameters.getRampUpTime() + " seconds))");
             }
 
             lines.add(newLine);
         }
         br.close();
+    }
+
+    private void extractBaseUrl(String newLine) {
+        Pattern p = Pattern.compile("^.*.baseUrl\\(\"(.*)\"\\)$");
+        Matcher m = p.matcher(newLine);
+        if (m.find()) {
+            baseUrl = m.group(1);
+        }
+    }
+
+    private void insertWSBaseUrl(List<String> lines) {
+        lines.add("\t\t.wsBaseUrl(\""+baseUrl.replaceFirst("http","ws")+"\")");
+    }
+
+    private void extractUidlHeaderNumber(String newLine, String previousLine) {
+        if (uidlHeadersNo==null && newLine.contains("headers(headers_") && previousLine!=null && previousLine.contains("UIDL/?v-uiId=")) {
+            try {
+                String[] s = newLine.split("_");
+                uidlHeadersNo = Integer.parseInt(s[1].substring(0, s[1].length()-1));
+            } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse headers no: "+newLine+" using the default value 2");
+                uidlHeadersNo = 2;
+            }
+        }
+    }
+
+    private void extractUidlPath(String newLine) {
+        if (uidlPath==null && newLine.contains("UIDL/?v-uiId=")) {
+            Pattern p = Pattern.compile("^.*post\\(\"(.*)UIDL/.*$");
+            Matcher m = p.matcher(newLine);
+            if (m.find()) {
+                uidlPath = m.group(1);
+            }
+        }
+    }
+
+    private String handleTryMax(BufferedReader br, String newLine) throws IOException {
+        if (newLine.contains(LoadTestDriver.INJECT_KEYWORD)) {
+            try {
+                String[] lineParts = newLine.substring(newLine.indexOf(LoadTestDriver.INJECT_KEYWORD)).split(loadTestParameters.getTryMaxDelimiterRegex());
+                Integer maxTries = Integer.parseInt(lineParts[lineParts.length-5]);
+                Integer pauseBetween = Integer.parseInt(lineParts[lineParts.length-4]);
+                String regex = lineParts[lineParts.length-3];
+                String requestName = lineParts[lineParts.length-2];
+
+                lines.remove(lines.size()-1);
+
+                while (!Strings.isNullOrEmpty(newLine) && !newLine.matches(".*check.bodyBytes.is.*")) {
+                    newLine = br.readLine();
+                }
+                newLine = br.readLine();
+                lines.add("\t\t.exec((session) => session.set(\"pollCounter\", 0))");
+                lines.add("\t\t.tryMax("+maxTries+") {");
+                lines.add("\t\t\tpause("+pauseBetween+" milliseconds)");
+                lines.add("\t\t\t.exec((session) => session.set(\"pollCounter\", session(\"pollCounter\").as[Int]+1))");
+                lines.add("\t\t\t\t.exec(http(\""+requestName+" #${pollCounter}\")");
+                lines.add("\t\t\t\t\t.post(\""+uidlPath+"UIDL/?v-uiId=0\")");
+                lines.add("\t\t\t\t\t.headers(headers_"+uidlHeadersNo+")");
+                if (loadTestParameters.isResynchronizePolling()) {
+                    lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId},\"resynchronize\":true}\"\"\")).asJson");
+                } else {
+                    lines.add("\t\t\t\t\t.body(StringBody(\"\"\"{\"csrfToken\":\"${seckey}\",\"rpc\":[[\"0\",\"com.vaadin.shared.ui.ui.UIServerRpc\",\"poll\",[]]],\"syncId\":${syncId},\"clientId\":${clientId}}\"\"\")).asJson");
+                }
+                lines.add("\t\t\t\t\t.check(regex(\"\"\""+regex+"\"\"\"))");
+                lines.add("\t\t\t\t)");
+                lines.add("\t\t\t}");
+
+            } catch (NumberFormatException | IndexOutOfBoundsException | NullPointerException e) {
+                Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse maxTry parameters: "+newLine);
+            }
+        }
+        return newLine;
     }
 
     private void addRegexExtractChecks() {
@@ -188,7 +296,7 @@ public class LoadTestConfigurator {
             for (Map.Entry<String, List<String>> entry : connectorIdToRequestFileNames.entrySet()) {
                 if (containsStringInAListOfStrings(aline, entry.getValue()) ||
                         (uiInitRequestFileName != null && aline.contains("check(xsrfTokenExtract)") &&
-                                 containsStringInAListOfStrings(uiInitRequestFileName, entry.getValue()))) {
+                                containsStringInAListOfStrings(uiInitRequestFileName, entry.getValue()))) {
                     String requiredConnectorId = entry.getKey();
 
                     if (requiredConnectorIds.contains(requiredConnectorId)) {
@@ -235,6 +343,243 @@ public class LoadTestConfigurator {
         }
     }
 
+    private void replacehardCodedUiIdAndPushIds() {
+        for (int i = 0; i < lines.size(); i++) {
+            final String aline = lines.get(i);
+            if (aline.matches(".*/?v-uiId=[0-9]{1,3}.*")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("\\?v-uiId=[0-9]{1,3}", Matcher.quoteReplacement("?v-uiId=${uiId}"));
+                lines.add(i, newLine);
+                --i;
+                continue;
+            }
+            if (aline.matches(".*v-pushId=[a-z0-9\\-]{1,50}&.*")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("v-pushId=[a-z0-9\\-]{1,50}&", Matcher.quoteReplacement("v-pushId=${pushId}&"));
+                lines.add(i, newLine);
+                --i;
+                continue;
+            }
+            if (aline.matches(".*X-Atmosphere-tracking-id=[a-z0-9\\-]{20,50}&.*")) {
+                lines.remove(i);
+                String newLine = aline.replaceFirst("X-Atmosphere-tracking-id=[a-z0-9\\-]{20,50}&", Matcher.quoteReplacement("X-Atmosphere-tracking-id=${atmokey}&"));
+                lines.add(i, newLine);
+            }
+        }
+    }
+
+    private void postTryMaxHandling() {
+        boolean tryMaxFound = false;
+        boolean tryMaxBody = false;
+        boolean nextReqFound = false;
+        boolean tryMaxChecksFound = false;
+        boolean forcySyncAfterTryMax = false;
+
+        int tryMaxChecksIndex = -1;
+
+        List<String> extractList = null;
+        List<Integer> toBeRemovedIndexes = null;
+
+        List<Triple<Integer, List<Integer>, List<String>>> postTryMaxIndexes = new ArrayList<>();
+
+        for (int i = 0; i < lines.size(); i++) {
+            final String aline = lines.get(i);
+            if (aline.contains("tryMax")) {
+                tryMaxFound = true;
+            }
+            if (tryMaxFound && aline.contains("body(StringBody(\"\"\"{\"csrfToken")) {
+                tryMaxFound = false;
+                tryMaxBody = true;
+                tryMaxChecksIndex = i+1;
+            }
+            if (tryMaxBody && aline.contains("exec(http(\"request_")) {
+                tryMaxBody = false;
+                nextReqFound = true;
+            }
+            if (nextReqFound && aline.contains("check(syncIdExtract).check(clientIdExtract)")) {
+                nextReqFound = false;
+                tryMaxChecksFound = true;
+                extractList = new ArrayList<>();
+                toBeRemovedIndexes = new ArrayList<>();
+            }
+            if (tryMaxChecksFound && aline.matches(".*check\\(extract_[0-9]{1,5}_Id\\).*")) {
+                extractList.add("\t\t"+aline);
+                toBeRemovedIndexes.add(i);
+            }
+            if (tryMaxChecksFound && aline.contains("body(ElFileBody(")) {
+                tryMaxChecksFound = false;
+                String requestFileName = getRequestFileName(aline);
+                String requestContent = readRequestResponseFileContent(requestFileName);
+                forcySyncAfterTryMax = requestContent.contains("\"resynchronize\":true");
+                if (forcySyncAfterTryMax) {
+                    postTryMaxIndexes.add(new ImmutableTriple<>(tryMaxChecksIndex, toBeRemovedIndexes, extractList));
+                }
+                tryMaxChecksIndex = -1;
+                toBeRemovedIndexes = null;
+                extractList = null;
+            }
+        }
+
+        int previousLinesListSize = lines.size();
+        int linesLiseSizeDelta = 0;
+        for (Triple<Integer, List<Integer>, List<String>> triplet : postTryMaxIndexes) {
+            tryMaxChecksIndex = triplet.getLeft();
+            toBeRemovedIndexes = triplet.getMiddle();
+            extractList = triplet.getRight();
+
+            Collections.reverse(toBeRemovedIndexes);
+            for (Integer index : toBeRemovedIndexes) {
+                lines.remove(index+linesLiseSizeDelta);
+            }
+            lines.addAll(tryMaxChecksIndex, extractList);
+            linesLiseSizeDelta = lines.size()-previousLinesListSize;
+            previousLinesListSize = lines.size();
+        }
+    }
+
+    // TODO: error prone code should be refactored later
+    private void handlePushRequests() {
+        boolean pushRequestFound = false;
+        boolean pushRequestStill = false;
+        int requestIndex = 0;
+        int lastPushRequestIndex = -1;
+
+        for (int i = 0; i < lines.size(); i++) {
+            String aline = lines.get(i);
+            if (isRequestLine(aline)) {
+                ++requestIndex;
+            }
+
+            if (isPushRequest(aline)) {
+                replaceExecHttpWithExecWs(i);
+                if (!pushRequestFound) {
+                    lines.add(i + 1, "\t\t\t.await(30 seconds)(atmoKeyCheck)");
+                    ++i;
+                }
+
+                if (twoSubsequentPushRequests(requestIndex, lastPushRequestIndex)) {
+                    combineSubsequentPushRequests(i);
+                }
+
+                pushRequestFound = true;
+                pushRequestStill = true;
+                lastPushRequestIndex = requestIndex;
+            }
+            else if (pushRequestFound && pushRequestStill) {
+                if (isRequestLine(aline) || isPushRequestLine(aline)) {
+                    pushRequestStill = false;
+                } else {
+                    if (aline.contains(".headers(headers_")) {
+                        lines.remove(i);
+                        --i;
+                    } else if (isRegexCheckLine(aline)) {
+                        replaceRegularRegexCheckWIthWsStyleCheck(i, aline);
+                    }
+                }
+            }
+        }
+        if (!pushRequestFound) {
+            lines.remove(props.getProperty("atmo_key_extract"));
+        }
+        combineSubsequestWSChecks(lines);
+    }
+
+    private void replaceExecHttpWithExecWs(int lineIndex) {
+        String aline = lines.remove(lineIndex);
+        String previousLine = lines.remove(lineIndex - 1);
+        String newPrevLine = previousLine.replace("exec(http(", "exec(ws(");
+        String newCurrentLine = aline.replace(".get(\"", ".connect(\"");
+        lines.add(lineIndex - 1, newPrevLine);
+        lines.add(lineIndex, newCurrentLine);
+    }
+
+    private boolean twoSubsequentPushRequests(int currentRequestIndex, int lastPushRequestIndex) {
+        return currentRequestIndex-lastPushRequestIndex==1;
+    }
+
+    private void combineSubsequentPushRequests(int lineIndex) {
+        int removedLines = 0;
+        for (int j = 0; j<5; j++) {
+            String bline = lines.get(lineIndex-j);
+            if (bline.matches("^.*await.*\\(atmoKeyCheck.*$")) {
+                break;
+            }
+            lines.remove(lineIndex-j);
+            ++removedLines;
+        }
+        for (int j=lineIndex-removedLines+1; j<lines.size(); j++) {
+            String aline = lines.get(j);
+            if (isRequestLine(aline) && !isPushRequest(aline)) {
+                break;
+            } else if (isRegexCheckLine(aline)) {
+                replaceRegularRegexCheckWIthWsStyleCheck(j, aline);
+            } else if (!isPauseOrClosingParenthesisLine(lines.get(j))) {
+                lines.remove(j);
+                --j;
+            }
+        }
+    }
+
+    private void replaceRegularRegexCheckWIthWsStyleCheck(int lineIndex, String aline) {
+        String newCheckLine = getWsStyleCheck(aline);
+        lines.remove(lineIndex);
+        lines.add(lineIndex, newCheckLine);
+    }
+
+    private boolean isPauseOrClosingParenthesisLine(String line) {
+        String removedTabs = line.trim().replaceAll("\t","");
+        return removedTabs.equals(")") || removedTabs.contains("pause(");
+    }
+
+    private void combineSubsequestWSChecks(List<String> lines) {
+        for (int i = 0; i < lines.size()-1; i++) {
+            if (isWSRegexCheckLine(lines.get(i)) && isWSRegexCheckLine(lines.get(i+1))) {
+                String newCheckLine = combineWsChecks(lines.get(i), lines.get(i+1));
+                lines.remove(i+1);
+                lines.remove(i);
+                lines.add(i, newCheckLine);
+            }
+        }
+    }
+
+    private String getWsStyleCheck(String aline) {
+        return "\t\t\t.await(30 seconds)(ws.checkTextMessage(\""+aline.trim()+"\")"+aline.trim()+")";
+    }
+
+    private String combineWsChecks(String firstCheckLine, String secondCheckLine) {
+        String secondCheck = extractCheck(secondCheckLine);
+        return firstCheckLine.replaceFirst("\\)$", ", ws.checkTextMessage(\"" + secondCheck + "\").check(" + secondCheck + "))\n");
+    }
+
+    private String extractCheck(String secondCheckLine) {
+        final Pattern pattern = Pattern.compile("^.*.check\\((.*?)\\).*$");
+        final Matcher matcher = pattern.matcher(secondCheckLine);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    private boolean isRegexCheckLine(String aline) {
+        return aline.contains(".check(extract_") || aline.contains("ws.checkTextMessage") || aline.contains("atmoKeyCheck");
+    }
+
+    private boolean isWSRegexCheckLine(String aline) {
+        return aline.contains("ws.checkTextMessage") || aline.contains("atmoKeyCheck");
+    }
+
+    private boolean isRequestLine(String aline) {
+        return aline.contains(".exec(http");
+    }
+
+    private boolean isPushRequestLine(String aline) {
+        return aline.contains(".exec(ws(");
+    }
+
+    private boolean isPushRequest(String line) {
+        return line!=null && line.contains("/PUSH?v-uiId=") && line.contains("X-Atmosphere-tracking-id=");
+    }
+
     private String escapeCurlyBraces(String regexExtractor) {
         // TODO: this is rather ugly hack to escape curly braces
         System.out.println(regexExtractor);
@@ -263,15 +608,6 @@ public class LoadTestConfigurator {
         final String propertyKey = connectorIdToMatchingPropertyKeyMap.get(requiredConnectorId);
         final String propertyValue = connectorIdToMatchingPropertyValueMap.get(requiredConnectorId);
 
-        if (propertyKey.equals(V7_GRID_DATACOMM)) {
-            String regexExtractor = props.getProperty("grid_id_extractor_regex_v7_template");
-            if (htmlRequestConnectors.contains(requiredConnectorId)) {
-                regexExtractor = props.getProperty("grid_id_extractor_regex_v7_template_escaped");
-            }
-            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredConnectorId + "_");
-            ++currentGridIndex;
-            return regexExtractor;
-        }
         if (propertyKey.equals(V8_GRID_DATACOMM)) {
             String regexExtractor = props.getProperty("grid_id_extractor_regex_v8_template");
             if (htmlRequestConnectors.contains(requiredConnectorId)) {
@@ -311,8 +647,17 @@ public class LoadTestConfigurator {
 
     private String requestBodyTreatments(String newLine, boolean saveResults) throws IOException {
         if (newLine.contains("RawFileBody")) {
-            newLine = replaceWithELFileBody(newLine, saveResults);
-            Logger.getLogger(LoadTestConfigurator.class.getName()).info(newLine);
+            if (newLine.contains("_response.txt")) {
+                String fileName = getRequestFileName(newLine);
+                if (!processedFiles.contains(fileName)) {
+                    String responseBody = readRequestResponseFileContent(fileName);
+                    readConnectorMap(responseBody, fileName);
+                    processedFiles.add(fileName);
+                }
+            } else {
+                newLine = replaceWithELFileBody(newLine, saveResults);
+                Logger.getLogger(LoadTestConfigurator.class.getName()).info(newLine);
+            }
         }
         return newLine;
     }
@@ -326,32 +671,48 @@ public class LoadTestConfigurator {
     }
 
     private void handleInitializationRequest(BufferedReader br, List<String> lines, String newLine) throws IOException {
-        while (newLine != null && !newLine.matches(".*body\\(RawFileBody.*")) {
+        List<String> linesBuffer = new ArrayList<>();
+        boolean convertInitManually = true;
+        while (newLine != null && !newLine.matches(".*body.{0,10}\\(RawFileBody.*")) {
             newLine = br.readLine();
+            linesBuffer.add(newLine);
+            if (newLine!=null && newLine.contains("formParam")) {
+                // no need to manually convert initialization request
+                convertInitManually = false;
+            }
         }
-
         final String fileName = getRequestFileName(newLine);
 
         if (fileName != null) {
-            uiInitRequestFileName = fileName;
-            Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
             String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
             readConnectorMap(responseBody, fileName);
 
-            final String requesBody = readRequestResponseFileContent(fileName);
-            final String[] requestParameters = requesBody.split("&");
-            for (final String requestParam : requestParameters) {
-                final String[] keyValuePair = requestParam.split("=");
-                if (keyValuePair[0].equals("v-loc")) {
-                    keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
-                    keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
-                }
-                final String formattedParameterLine = String
-                        .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
-                lines.add(formattedParameterLine);
+            if (!convertInitManually) {
+                lines.addAll(linesBuffer);
             }
+            else {
+                uiInitRequestFileName = fileName;
+                Logger.getLogger(LoadTestConfigurator.class.getName()).info(fileName);
+                responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
+                readConnectorMap(responseBody, fileName);
+
+                final String requesBody = readRequestResponseFileContent(fileName);
+                final String[] requestParameters = requesBody.split("&");
+                for (final String requestParam : requestParameters) {
+                    final String[] keyValuePair = requestParam.split("=");
+                    if (keyValuePair[0].equals("v-loc")) {
+                        keyValuePair[1] = keyValuePair[1].replaceAll("%3A", ":");
+                        keyValuePair[1] = keyValuePair[1].replaceAll("%2F", "/");
+                    }
+                    final String formattedParameterLine = String
+                            .format("\t\t\t.formParam(\"%s\", \"%s\")", keyValuePair[0], keyValuePair[1]);
+                    lines.add(formattedParameterLine);
+                }
+            }
+            lines.add(lines.size()-1, "\t\t\t.check(uIdExtract)");
+            lines.add(lines.size()-1,"\t\t\t.check(pushIdExtract)");
+            lines.add(lines.size()-1,"\t\t\t.check(xsrfTokenExtract)");
         }
-        lines.add("\t\t\t.check(xsrfTokenExtract)");
     }
 
     private String replaceWithELFileBody(String newLine, boolean saveRequest) throws IOException {
@@ -361,11 +722,14 @@ public class LoadTestConfigurator {
 
             String requestBody = readRequestResponseFileContent(fileName);
             String responseBody = readRequestResponseFileContent(fileName.replaceFirst("request", "response"));
-            readConnectorMap(responseBody, fileName);
+            if (!processedFiles.contains(fileName)) {
+                readConnectorMap(responseBody, fileName);
+                processedFiles.add(fileName);
+            }
             requestBody = doRequestBodyTreatments(requestBody);
 
             if (saveRequest) {
-                saveRequestFile(resourcesPath + "/bodies/" + fileName, requestBody);
+                saveRequestFile(resourcesPath + (resourcesPath.charAt(resourcesPath.length()-1)=='/' ? "" : "/") + fileName, requestBody);
             } else {
                 Logger.getLogger(LoadTestConfigurator.class.getName())
                         .info("--- New RequestBody " + "---\n" + requestBody + "\n-----------------------");
@@ -386,9 +750,11 @@ public class LoadTestConfigurator {
                 String connectorId = String.valueOf(in.nextInt());
                 if (connectorIdToMatchingPropertyKeyMap.containsKey(connectorId) ||
                         (connectorIdToTypeIdMap.get(connectorId) != null && typeIdToCountMap.get(connectorIdToTypeIdMap.get(connectorId)) == 1)) {
-                    String idName = "_" + connectorId + "_Id";
-                    requestBody = requestBody.replace("\"" + connectorId + "\"", "\"${" + idName + "}\"");
-                    requiredConnectorIds.add(connectorId);
+                    if (!connectorId.equals("0")) {
+                        String idName = "_" + connectorId + "_Id";
+                        requestBody = requestBody.replace("\"" + connectorId + "\"", "\"${" + idName + "}\"");
+                        requiredConnectorIds.add(connectorId);
+                    }
                 } else {
                     Logger.getLogger(LoadTestConfigurator.class.getName())
                             .info(" ####### No mapping found for connector id " + connectorId + " at request: " + requestBody);
@@ -419,7 +785,7 @@ public class LoadTestConfigurator {
     }
 
     private String readRequestResponseFileContent(final String fileName) {
-        return readFileContent(resourcesPath + "/bodies/" + fileName);
+        return readFileContent(resourcesPath + "/"+ fileName);
     }
 
     private String readFileContent(String filename) {
@@ -439,15 +805,25 @@ public class LoadTestConfigurator {
         lines.add(props.getProperty("sync_id_extract"));
         lines.add(props.getProperty("client_id_extract"));
         lines.add(props.getProperty("xsrf_token_extract"));
+        lines.add(props.getProperty("push_id_extract"));
+        lines.add(props.getProperty("uiid_id_extract"));
+        lines.add(props.getProperty("atmo_key_extract"));
         lines.add("\n");
     }
 
     void readConnectorMap(String responseFileContent, String filename) {
         String responseJson = "";
         boolean htmlRequest = false;
-        if (!responseFileContent.startsWith("<!doctype html>")) {
+        if (isCorrectFileType(responseFileContent, filename)) {
             try {
-                responseJson = responseFileContent.replace("for(;;);", "");
+                responseJson = responseFileContent.trim().replace("for(;;);", "");
+                if (responseJson.substring(0, 10).contains("|")) {
+                    responseJson = responseJson.split("\\|")[1];
+                    if (responseJson.length()<40) {
+                        // is probably the atmokey
+                        return;
+                    }
+                }
                 if (responseJson.contains("Vaadin-Security-Key")) {
                     responseJson = responseJson.replaceAll("<span class=.{1,50}</span>", "<span></span>");
 
@@ -457,16 +833,20 @@ public class LoadTestConfigurator {
                     responseJson = responseJson.replaceAll("},\"[0-9]+\":.\"json\":.*?\"}(,\"\\d+?\":\\{)", "}$1");
                     // get rid of grid data
                     responseJson = responseJson.replaceAll(
-                                 "DataCommunicatorClientRpc\",\"setData\",\\[.*?]], \"",
+                            "DataCommunicatorClientRpc\",\"setData\",\\[.*?]], \"",
                             "DataCommunicatorClientRpc\",\"setData\"]], \"");
                     //responseJson = responseJson.replace("\\\\\"", "\"");
                     htmlRequest = true;
                 }
                 responseJson = responseJson.replace("uidl\":\"{", Matcher.quoteReplacement("uidl\":{"));
+                if (responseJson.endsWith("}\"}")) {
+                    responseJson = responseJson.substring(0, responseJson.length()-3)+"}}";
+                }
                 responseJson = responseJson.replace("]}\"}", Matcher.quoteReplacement("]}}"));
                 if (responseJson.startsWith("[")) {
                     responseJson = responseJson.substring(1, responseJson.length() - 1);
                 }
+                responseJson = removeJavaScriptExecutions(responseJson);
                 JsonObject jsonObject = Json.parse(responseJson);
                 if (!jsonObject.hasKey("state") && jsonObject.hasKey("uidl")) {
                     jsonObject = jsonObject.getObject("uidl");
@@ -497,10 +877,12 @@ public class LoadTestConfigurator {
                         final JsonObject childConnectorState = connectorState.getObject("childData");
                         final String[] childKeys = childConnectorState.keys();
                         for (String childKey : childKeys) {
-                            connectorIdStack.push(childKey);
-                            connectorIdToStatesMap.computeIfAbsent(childKey, k -> new ArrayList<>());
-                            final List<JsonObject> childStates = connectorIdToStatesMap.get(childKey);
-                            childStates.add(childConnectorState);
+                            if (!connectorIdStack.contains(childKey)) {
+                                connectorIdStack.push(childKey);
+                                connectorIdToStatesMap.computeIfAbsent(childKey, k -> new ArrayList<>());
+                                final List<JsonObject> childStates = connectorIdToStatesMap.get(childKey);
+                                childStates.add(childConnectorState);
+                            }
                         }
                     }
 
@@ -547,7 +929,7 @@ public class LoadTestConfigurator {
                             if (subArray.length() > 2) {
                                 final String connectorId = subArray.getString(0);
                                 final String className = subArray.getString(1);
-                                if (className.equals(V7_GRID_DATACOMM) || className.equals(V8_GRID_DATACOMM)) {
+                                if (className.equals(V8_GRID_DATACOMM)) {
                                     if (!connectorIdToMatchingPropertyKeyMap.containsKey(connectorId)) {
                                         connectorIdToMatchingPropertyKeyMap.put(connectorId, className);
                                         connectorIdToMatchingPropertyValueMap.put(connectorId, className);
@@ -594,8 +976,25 @@ public class LoadTestConfigurator {
             } catch (Exception e) {
                 Logger.getLogger(LoadTestConfigurator.class.getName()).severe(responseJson);
                 Logger.getLogger(LoadTestConfigurator.class.getName()).severe("Failed to parse response json " + responseJson);
+                if (errorCallback!=null) {
+                    errorCallback.conficuratioFailed("Failed to parse response json " + responseJson);
+                }
             }
         }
+    }
+
+    private String removeJavaScriptExecutions(String responseJson) {
+        Pattern pattern = Pattern.compile(",\\s?\"rpc\"\\s?:\\s?\\[\\[.{50,100}executeJavaScript");
+        Matcher matcher = pattern.matcher(responseJson);
+        while (matcher.find()) {
+            int startIndex = matcher.start();
+            return responseJson.substring(0, startIndex)+"}";
+        }
+        return responseJson;
+    }
+
+    private boolean isCorrectFileType(String responseFileContent, String filename) {
+        return filename.contains("_response.txt") && responseFileContent!=null && !responseFileContent.isEmpty() && !responseFileContent.startsWith("<!doctype html>") && !responseFileContent.startsWith("<?xml") && !responseFileContent.startsWith("<svg") && !responseFileContent.startsWith("<!DOCTYPE svg");
     }
 
     Map<String, String> getConnectorIdToMatchingPropertyKeyMap() {

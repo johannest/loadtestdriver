@@ -1,1 +1,0 @@
-v-browserDetails=1&theme=mytheme&v-appId=ROOT-2521314&v-sh=768&v-sw=1024&v-cw=400&v-ch=300&v-curdate=1508730420204&v-tzo=-180&v-dstd=60&v-rtzo=-120&v-dston=true&v-vw=400&v-vh=0&v-loc=http%3A%2F%2F192.168.1.117%3A8080%2Fui&v-wn=ROOT-2521314-0.5851812623441219&v-td=1

@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["${_87_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawb"]],["${_87_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Strawbe"]]],"syncId":${syncId},"clientId":${clientId}}

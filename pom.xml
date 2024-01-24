@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1.7</version>
+	<version>0.2.11</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
@@ -13,9 +13,9 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 
-		<gatling.version>2.3.1</gatling.version>
-		<scala.version>2.11.8</scala.version>
-		<test-bench-version>4.2.2</test-bench-version>
+		<gatling.version>3.0.3</gatling.version>
+		<scala.version>3.4.4</scala.version>
+		<test-bench-version>5.2.0</test-bench-version>
 		
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -60,7 +60,7 @@
 		   <artifactId>vaadin-testbench</artifactId>
 		   <version>${test-bench-version}</version>
 		</dependency>
-		
+
 		<!-- Gatling dependencies -->
 		<dependency>
     		<groupId>io.gatling</groupId>

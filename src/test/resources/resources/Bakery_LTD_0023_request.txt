@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["${_87_Id}","com.vaadin.shared.data.selection.SelectionServerRpc","select",["6"]]],"syncId":${syncId},"clientId":${clientId}}

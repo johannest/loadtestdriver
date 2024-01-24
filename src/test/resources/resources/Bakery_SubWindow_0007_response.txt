@@ -1,0 +1,1 @@
+for(;;);[{"syncId": 4, "clientId": 3, "changes" : [["change",{"pid":"50"},["39",{"id":"50","v":{"action":""}},["actions",{},["action",{"key":"1","kc":27,"mk":[]}]]]]], "state":{"50":{"positionX":0,"positionY":0}}, "types":{"50":"39"}, "hierarchy":{"50":["51"]}, "rpc" : [], "meta" : {}, "resources" : {}}]

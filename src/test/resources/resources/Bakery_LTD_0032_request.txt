@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["${_99_Id}","com.vaadin.shared.data.DataRequestRpc","requestRows",[0,3,0,0]],["${_98_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla Cr"]],["${_98_Id}","com.vaadin.shared.ui.combobox.ComboBoxServerRpc","setFilter",["Vanilla Cra"]]],"syncId":${syncId},"clientId":${clientId}}

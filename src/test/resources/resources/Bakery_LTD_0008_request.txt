@@ -1,0 +1,1 @@
+{"csrfToken":"${seckey}","rpc":[["${_59_Id}","com.vaadin.shared.ui.datefield.AbstractDateFieldServerRpc","update",[null,{"DAY":5,"MONTH":12,"YEAR":2025}]]],"syncId":${syncId},"clientId":${clientId}}

@@ -1,13 +1,8 @@
 package org.vaadin.johannest.loadtestdriver;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.phantomjs.PhantomJSDriverService;
-import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 public class LoadTestDriverBuilder {
 
@@ -28,6 +23,8 @@ public class LoadTestDriverBuilder {
     private int minPause=-1;
     private int maxPause=-1;
     private boolean headlessEnabled;
+
+    private String browserLanguageCode;
 
     public LoadTestDriverBuilder() {
         ipaddress = "127.0.0.1";
@@ -171,40 +168,39 @@ public class LoadTestDriverBuilder {
         return this;
     }
 
-    public WebDriver build() {
-        return build(Collections.emptyMap());
+    /**
+     * Use given language code (e.g. es or de) for Chrome
+     *
+     * @return LoadTestDriverBuilder
+     */
+    public LoadTestDriverBuilder withBrowserLanguageCode(String browserLanguageCode) {
+        this.browserLanguageCode = browserLanguageCode;
+        return this;
     }
 
-    public WebDriver build(Map<String, String> additionalCapabilities) {
-        final ArrayList<String> cliArgsCap = new ArrayList<>();
-        cliArgsCap.add("--web-security=false");
-        cliArgsCap.add("--load-images=false");
-        cliArgsCap.add("--ignore-ssl-errors=true");
-        cliArgsCap.add("--debug=true");
-        cliArgsCap.add("--proxy=" + ipaddress + ":" + proxyPort);
-        cliArgsCap.add("--proxy-type=http");
+    public LoadTestDriver build() {
+        Proxy proxy = new Proxy();
+        proxy.setHttpProxy(ipaddress+":"+proxyPort);
 
-        final ArrayList<String> cliArgsCap2 = new ArrayList<>();
-        cliArgsCap2.add("--logLevel=INFO");
-
-        final DesiredCapabilities capabilities = DesiredCapabilities.phantomjs();
-        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_CLI_ARGS, cliArgsCap);
-        capabilities.setCapability(PhantomJSDriverService.PHANTOMJS_GHOSTDRIVER_CLI_ARGS, cliArgsCap2);
-        for (Map.Entry<String,String> entry : additionalCapabilities.entrySet()) {
-            capabilities.setCapability(entry.getKey(),entry.getValue());
+        ChromeOptions options = new ChromeOptions();
+        options.setCapability("proxy", proxy);
+        options.addArguments("--disable-gpu");
+        if (browserLanguageCode!=null && !browserLanguageCode.isEmpty()) {
+            options.addArguments("--lang=" + browserLanguageCode);
         }
+        options.setHeadless(headlessEnabled);
 
         LoadTestParameters loadTestParameters = new LoadTestParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
 
-        final LoadTestDriver driver = new LoadTestDriver(capabilities, loadTestParameters, headlessEnabled);
+        final LoadTestDriver driver = new LoadTestDriver(options, loadTestParameters, false);
         driver.setProxyHost(ipaddress);
         driver.setProxyPort(proxyPort);
-        driver.setTempFilePath(testPath);
+        driver.setSimulationFilePath(testPath);
         driver.setResourcesPath(resourcesPath);
         driver.setTestName(testName);
         driver.setTestConfiguringEnabled(testRefactoringEnabled);
-        driver.withStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
+        driver.setStaticResourcesIngnoringEnabled(staticResourcesIngnoringEnabled);
         return driver;
     }
 }
