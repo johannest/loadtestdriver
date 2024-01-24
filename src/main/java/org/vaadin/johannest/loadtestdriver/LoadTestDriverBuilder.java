@@ -184,10 +184,14 @@ public class LoadTestDriverBuilder {
         ChromeOptions options = new ChromeOptions();
         options.setCapability("proxy", proxy);
         options.addArguments("--disable-gpu");
+        options.addArguments("--ignore-certificate-errors");
+        options.setAcceptInsecureCerts(true);
         if (browserLanguageCode!=null && !browserLanguageCode.isEmpty()) {
             options.addArguments("--lang=" + browserLanguageCode);
         }
-        options.setHeadless(headlessEnabled);
+        if (headlessEnabled) {
+            options.addArguments("--headless=new");
+        }
 
         ConfigurationParameters configurationParameters = new ConfigurationParameters(concurrentUsers, rampUpTime, repeats,
                 minPause, maxPause);
