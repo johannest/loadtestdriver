@@ -31,7 +31,7 @@ http://chromedriver.chromium.org
 
 ### Add dependency to your pom.xml
 
-```
+```xml
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
@@ -40,7 +40,7 @@ http://chromedriver.chromium.org
 ```
 
 ### Use LoadTestDriver instead of e.g. ChromeDriver in your TestBench test's setup method. It recommended to store reference to the driver instance to make it easy to access the API of the driver.
-```
+```java
 @Before
 public void setUp() throws Exception {
 	WebDriver driver = new LoadTestDriverBuilder().
@@ -62,7 +62,7 @@ public void setUp() throws Exception {
 LoadTestDriver stores a recorded scala script by default in the System's tmp-folder, but you can specify used output folder like in above example. Make sure that you have a write access to that folder.
 
 ### Configure your TestBench test to open the application to be tested with your ip address:
-```
+```java
 private void openTestUrl() {
 	// opens URL http://your.local.ip.address:8080/ui
     getDriver().get(LoadTestDriver.getLocalIpAddressWithPortAndContextPath(8080,"ui"));
