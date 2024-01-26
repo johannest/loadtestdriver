@@ -34,7 +34,7 @@ public class LoadTestConfigurator {
     private final Map<String, String> nodeIdToThemeMap = new HashMap<>();
 
     private final Map<String, String> nodeIdToResponseFileName = new HashMap<>();
-    private final Map<Pair<String,String>, String> responseFilenameAndNodeIdToRegexpExtractor = new HashMap<>();
+    private final Map<Pair<String, String>, String> responseFilenameAndNodeIdToRegexpExtractor = new HashMap<>();
     private final Map<String, String> responseFilenameToRegexpExtractor = new HashMap<>();
 
     private TreeMap<String, String> requestNamesAndBodies = new TreeMap<>();
@@ -115,10 +115,15 @@ public class LoadTestConfigurator {
 
     private void removePossibleBodyByteCheck() {
         List<String> newLines = new ArrayList<>();
+        int newIndex = 0;
         for (int i = 0; i < lines.size(); i++) {
             String aline = lines.get(i);
             if (!aline.contains(".check(bodyBytes().is(")) {
                 newLines.add(aline);
+                ++newIndex;
+            } else if (i+10 < lines.size()) {
+                // add comma to end except for the last exec
+                newLines.set(newIndex-1, newLines.get(newIndex-1)+",");
             }
         }
         lines = newLines;
@@ -136,7 +141,7 @@ public class LoadTestConfigurator {
             if (previousLine != null && previousLine.contains(".exec(") && newLine.contains("http(")) {
                 if (configurationParameters.pausesEnabled()) {
                     lines.add("\t\t.pause(" + configurationParameters.getMinPause() + ", " +
-                            configurationParameters.getMaxPause() + ")");
+                              configurationParameters.getMaxPause() + ")");
                 }
             }
 
@@ -147,7 +152,7 @@ public class LoadTestConfigurator {
             if (newLine.contains("atOnceUsers")) {
                 newLine = newLine.replaceFirst("inject\\(atOnceUsers\\(1\\)\\)",
                         "injectOpen(rampUsers(" + configurationParameters.getConcurrentUsers() + ") during (" +
-                                configurationParameters.getRampUpTime() + " seconds))");
+                        configurationParameters.getRampUpTime() + " seconds))");
             }
 
             lines.add(newLine);
@@ -183,7 +188,7 @@ public class LoadTestConfigurator {
                     String check = "\t\t.check(" + extractor + ")";
                     if (!usedChecks.contains(check)) {
                         usedChecks.add(check);
-                        lines.add(i, check);
+                        lines.add(i-1, check);
                         ++i;
                     }
                 }
@@ -241,7 +246,7 @@ public class LoadTestConfigurator {
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueId));
             return regexExtractor;
-        }  else if (propertyValueLabel != null) {
+        } else if (propertyValueLabel != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_label");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueLabel));
@@ -256,12 +261,19 @@ public class LoadTestConfigurator {
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueText));
             return regexExtractor;
-        } else if (propertyValueAdd != null) {
+        } else if (propertyValueTag != null && isLessFrequentUsedTag(propertyValueTag)) {
+            // use "tag" in case of vaadin-grid, vaadin-grid-pro etc. components that are likely to appeat once per view
+            String regexExtractor = props.getProperty("connectorid_extractor_regex_template_tag");
+            regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
+            regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTag));
+            return regexExtractor;
+        }
+        else if (propertyValueAdd != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_add");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueAdd));
             return regexExtractor;
-        }  else if (propertyValueTheme != null) {
+        } else if (propertyValueTheme != null) {
             String regexExtractor = props.getProperty("connectorid_extractor_regex_template_theme");
             regexExtractor = regexExtractor.replace("_XXX_", "_" + requiredNodeId + "_");
             regexExtractor = regexExtractor.replace("_YYY_", escapePropertyValue(propertyValueTheme));
@@ -274,6 +286,15 @@ public class LoadTestConfigurator {
         }
 
         return null;
+    }
+
+    private boolean isLessFrequentUsedTag(String propertyValueTag) {
+        return propertyValueTag.equals("vaadin-grid") ||
+               propertyValueTag.equals("vaadin-grid-pro") ||
+               propertyValueTag.equals("vaadin-grid-pro-edit-column") ||
+               propertyValueTag.equals("vaadin-notification") ||
+               propertyValueTag.equals("vaadin-dialog") ||
+               propertyValueTag.equals("vaadin-tabs");
     }
 
     private String escapePropertyValue(String propertyValue) {
@@ -353,19 +374,21 @@ public class LoadTestConfigurator {
                 regexExtractor = escapeCurlyBraces(regexExtractor);
                 String regexpStart = regexExtractor.split("saveAs")[0];
 
+                String idName = "_" + nodeId + "_Id";
+                requestBody = requestBody.substring(0, index + 7) + "#{" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
+                matcher = p.matcher(requestBody);
                 // do not use identical regexps twice in same response file
-                if (responseFilenameToRegexpExtractor.get(nodeIdToResponseFileName.get(nodeId)+regexpStart) == null) {
-                    String idName = "_" + nodeId + "_Id";
-                    requestBody = requestBody.substring(0, index + 7) + "#{" + idName + "}" + requestBody.substring(index + nodeId.length() + 7);
-                    matcher = p.matcher(requestBody);
+                if (responseFilenameToRegexpExtractor.get(nodeIdToResponseFileName.get(nodeId) + regexpStart) == null) {
                     responseFilenameAndNodeIdToRegexpExtractor.put(Pair.of(nodeIdToResponseFileName.get(nodeId), nodeId), regexExtractor);
-                    responseFilenameToRegexpExtractor.put(nodeIdToResponseFileName.get(nodeId)+regexpStart, regexExtractor);
+                    responseFilenameToRegexpExtractor.put(nodeIdToResponseFileName.get(nodeId) + regexpStart, regexExtractor);
                 }
             }
         }
-
-        requestBody = requestBody.replaceFirst("syncId\":[0-9]+", Matcher.quoteReplacement("syncId\":#{syncId}"));
-        requestBody = requestBody.replaceFirst("clientId\":[0-9]+", Matcher.quoteReplacement("clientId\":#{clientId}"));
+        // skip for the syncId value 0
+        if (!requestBody.contains("\"syncId\":0")) {
+            requestBody = requestBody.replaceFirst("syncId\":[0-9]+", Matcher.quoteReplacement("syncId\":#{syncId}"));
+            requestBody = requestBody.replaceFirst("clientId\":[0-9]+", Matcher.quoteReplacement("clientId\":#{clientId}"));
+        }
         requestBody = requestBody.replaceFirst("csrfToken\":\"[a-z0-9\\-]+\"", Matcher.quoteReplacement("csrfToken\":\"#{seckey}\""));
         return requestBody;
     }
@@ -475,7 +498,7 @@ public class LoadTestConfigurator {
     }
 
     private void extractIdNode(String responseFilename, JsonObject node, String nodeId) {
-        if (node.hasKey("key") && node.getString("key").equals("label")) {
+        if (node.hasKey("key") && node.getString("key").equals("id")) {
             // {"node":39,"type":"put","key":"id","feat":1,"value":"Category"}
             JsonString labelValue = node.get("value");
             if (!Strings.isNullOrEmpty(labelValue.getString())) {
@@ -509,8 +532,8 @@ public class LoadTestConfigurator {
 
     private void extractTextNode(String responseFilename, JsonObject currNode, JsonObject prevNode, String nodeId) {
         if (prevNode != null &&
-                prevNode.hasKey("key") && prevNode.getString("key").equals("text") &&
-                currNode.hasKey("type") && currNode.getString("type").equals("attach")) {
+            prevNode.hasKey("key") && prevNode.getString("key").equals("text") &&
+            currNode.hasKey("type") && currNode.getString("type").equals("attach")) {
             // {"node":33,"type":"put","key":"text","feat":7,"value":"Fiction"}
             // {"node":34,"type":"attach"},
             JsonString tagValue = prevNode.get("value");

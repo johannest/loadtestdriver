@@ -5,7 +5,7 @@
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<packaging>jar</packaging>
-	<version>0.5.1</version>
+	<version>0.5.2</version>
 	<name>LoadTestDriver add-on</name>
 
 	<properties>
@@ -13,9 +13,9 @@
 		<maven.compiler.source>11</maven.compiler.source>
 		<maven.compiler.target>11</maven.compiler.target>
 
-		<gatling.version>3.9.0</gatling.version>
-		<gatling-plugin.version>4.2.9</gatling-plugin.version>
-		<vaadin.version>14.8.20</vaadin.version>
+		<gatling.version>3.10.3</gatling.version>
+		<gatling-plugin.version>4.7.0</gatling-plugin.version>
+		<vaadin.version>23.3.32</vaadin.version>
 
 		<!-- ZIP Manifest fields -->
 		<Implementation-Version>${project.version}</Implementation-Version>
@@ -70,12 +70,12 @@
 		<dependency>
 			<groupId>com.vaadin</groupId>
 			<artifactId>vaadin-testbench-core</artifactId>
-			<version>6.4.0</version>
+			<version>8.2.5</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>2.11.0</version>
+			<version>2.15.1</version>
 		</dependency>
 
 		<!-- Gatling dependencies -->
@@ -113,12 +113,12 @@
 		<dependency>
 			<groupId>info.picocli</groupId>
 			<artifactId>picocli</artifactId>
-			<version>4.6.1</version>
+			<version>4.7.5</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>3.12.0</version>
+			<version>3.14.0</version>
 		</dependency>
 
 	</dependencies>
@@ -128,22 +128,22 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.3</version>
+				<version>3.12.1</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
-				<version>2.6</version>
+				<version>3.3.1</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.4</version>
+				<version>3.3.0</version>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-clean-plugin</artifactId>
-				<version>3.1.0</version>
+				<version>3.3.2</version>
 				<!-- Clean up also any pre-compiled themes -->
 				<configuration>
 					<filesets>
@@ -160,7 +160,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.3.1</version>
+				<version>3.3.0</version>
 				<configuration>
 					<archive>
 						<index>true</index>
@@ -185,7 +185,7 @@
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-				<version>3.2.0</version>
+				<version>3.6.0</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <descriptors>
@@ -210,6 +210,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>2.7.18</version>
 				<executions>
 					<execution>
 						<goals>
@@ -227,6 +228,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.6.1</version>
 				<executions>
 					<execution>
 						<id>copy-dependencies</id>
