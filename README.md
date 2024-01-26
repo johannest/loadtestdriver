@@ -17,7 +17,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.6.0</version>
-    <scope>test</scope>
+	<scope>test</scope>
 </dependency> 
 ```
 
@@ -27,7 +27,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.5.2</version>
-    <scope>test</scope>
+	<scope>test</scope>
 </dependency> 
 ```
 
@@ -37,7 +37,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.4.0</version>
-    <scope>test</scope>
+	<scope>test</scope>
 </dependency> 
 ```
 
@@ -47,7 +47,7 @@ Vaadin 8
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.2.11</version>
-    <scope>test</scope>
+	<scope>test</scope>
 </dependency> 
 ```
 
