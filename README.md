@@ -10,12 +10,30 @@ Probably the easiest way to quickly record a scalability/load test for a Vaadin 
 Workflow
 ========
 ### Add dependency to your pom.xml
-Vaadin 14
+[Vaadin 24](https://github.com/johannest/loadtestdriver/tree/v24)
 ```xml
 <dependency>
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
-	<version>0.3.4</version>
+	<version>0.6.0</version>
+</dependency> 
+```
+
+[Vaadin 23](https://github.com/johannest/loadtestdriver/tree/v23)
+```xml
+<dependency>
+	<groupId>org.vaadin.johannest</groupId>
+	<artifactId>loadtestdriver</artifactId>
+	<version>0.5.2</version>
+</dependency> 
+```
+
+[Vaadin 14](https://github.com/johannest/loadtestdriver/tree/v10)
+```xml
+<dependency>
+	<groupId>org.vaadin.johannest</groupId>
+	<artifactId>loadtestdriver</artifactId>
+	<version>0.4.0</version>
 </dependency> 
 ```
 
