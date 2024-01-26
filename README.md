@@ -6,6 +6,7 @@ LoadTestDriver
 WebDriver for recording a Gatling load test, from an existing TestBench test.
 Probably the easiest way to quickly record a scalability/load test for a Vaadin web application
 
+Note! Latest development and fixes are currently done only for V24 and V23 branches (see the links to branches below). Feel free report an issue if you need fixes to older versions (v8 -- v14).
 
 Workflow
 ========
@@ -16,6 +17,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.6.0</version>
+    <scope>test</scope>
 </dependency> 
 ```
 
@@ -25,6 +27,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.5.2</version>
+    <scope>test</scope>
 </dependency> 
 ```
 
@@ -34,6 +37,7 @@ Workflow
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.4.0</version>
+    <scope>test</scope>
 </dependency> 
 ```
 
@@ -43,6 +47,7 @@ Vaadin 8
 	<groupId>org.vaadin.johannest</groupId>
 	<artifactId>loadtestdriver</artifactId>
 	<version>0.2.11</version>
+    <scope>test</scope>
 </dependency> 
 ```
 
