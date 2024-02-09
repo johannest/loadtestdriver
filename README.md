@@ -47,7 +47,7 @@ http://chromedriver.chromium.org
 @BeforeEach
 public void setUp() throws Exception {
 	WebDriver driver = new LoadTestDriverBuilder().
-			withIpAddress(LoadTestDriver.getLocalIpAddress()).
+			withIpAddress("your-real-local-ipv4-address").
 			withNumberOfConcurrentUsers(1).
 			withRampUpTimeInSeconds(1).
 			withTestName("MyUI_ScalabilityTest").
@@ -57,7 +57,7 @@ public void setUp() throws Exception {
 			withTestRefactoring().
 			build();
 	setDriver(driver);
-    driver.get("http://your-ip-address:8080/");
+    driver.get("http://your-real-local-ipv4-address:8080/");
 }
 ```
 
