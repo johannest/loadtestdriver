@@ -74,6 +74,9 @@ private void openTestUrl() {
 ```
 **Note: The local IP address API above might not always work! In that case you have to explicitly hard code your ip v4 address into the test**
 
+### Start your application in the production mode
+For example: `mvn spring-boot:run -Pproduction`
+
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
 
