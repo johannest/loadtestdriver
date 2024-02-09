@@ -59,7 +59,7 @@ Verify that your application server works in your browser with your local IP add
 @Before
 public void setUp() throws Exception {
 	    loadTestDriver = new LoadTestDriverBuilder().
-    				withIpAddress(LoadTestDriver.getLocalIpAddress()).
+    				withIpAddress("your-real-local-ipv4-address").
     				withNumberOfConcurrentUsers(2).
     				withRampUpTimeInSeconds(2).
     				withTestName("Bakery_AddOrder").
