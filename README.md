@@ -22,7 +22,7 @@ Supported Gatling versions
 | 0.1                    | V7        | 3.0.x          | Scala              |
 | 0.2                    | V8        | 3.0.x          | Scala              |
 | 0.3                    | V14       | 3.0.x          | Scala              |
-| 0.5                    | V23       | 3.8.x          | Java11             |
+| 0.5                    | V23       | 3.10.x         | Java11             |
 | 0.6+                   | V24+      | 3.10.x         | Java11             |
 
 
@@ -63,6 +63,7 @@ public void setUp() throws Exception {
 
 ### Verify that the logged in user has write access to the directory(ies) specified above TestBench test setup.
 LoadTestDriver stores a recorded scala script by default in the System's tmp-folder, but you can specify used output folder like in above example. Make sure that you have a write access to that folder.
+**Note: Make sure you only run one test one time for the given directory and test name, othervice the resulting script might be broken.**
 
 ### Configure your TestBench test to open the application to be tested with your ip address:
 ```java
@@ -71,6 +72,7 @@ private void openTestUrl() {
     getDriver().get(LoadTestDriver.getLocalIpAddressWithPortAndContextPath(8080,"ui"));
 }
 ```
+**Note: The local IP address API above might not always work! In that case you have to explicitly hard code your ip v4 address into the test**
 
 ### Run the test as a JUnit test
 LoadTestDriver uses Gatling to record the load test with parameters given in Driver setup (see above), test is saved in the given destination (see above).
