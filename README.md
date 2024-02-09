@@ -8,6 +8,8 @@ Probably the easiest way to quickly record a scalability/load test for a Vaadin 
 
 Note! Latest development and fixes are currently done only for V24 and V23 branches (see the links to branches below). Feel free report an issue if you need fixes to older versions (v8 -- v14).
 
+Note! V23 and V24 versions support alternative approach of generating Gatling tests without a TestBench test: https://github.com/johannest/loadtestdriver/blob/v24/README.md#loadtest-cli
+
 Workflow
 ========
 ### Add dependency to your pom.xml
